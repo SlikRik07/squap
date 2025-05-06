@@ -115,50 +115,76 @@ def get_single_color(input_col):
 
 
 # <editor-fold desc="functions that convert string to specified type, for inputbox input validation.">
-def stringify(string):          # turning 'banana' into string "banana" instead of "'banana'"
-    return string.strip(r'"\'')
+# def stringify(string):          # turning 'banana' into string "banana" instead of "'banana'"
+#     return string.strip(r'"\'')
 
 
-def str_to_bool(string: str):
-    if string == "False":
-        return False
-    else:
-        return True
+# def str_to_bool(string: str):
+#     if string == "False":
+#         return False
+#     else:
+#         return True
 
 
-def str_to_tuple_func(sub_func):
-    def func(string: str):
-        return (sub_func(i) for i in map(str.strip, string.strip(" ()").split(","))) if string.strip(" ()") else ()
-
-    return func
-
-
-def str_to_list_func(sub_func):
-    def func(string: str):
-        return [sub_func(i) for i in map(str.strip, string.strip(" []").split(","))] if string.strip(" []") else []
-
-    return func
+# def str_to_tuple_func(sub_func):
+#     def func(string: str):
+#         return (sub_func(i) for i in map(str.strip, string.strip(" ()").split(","))) if string.strip(" ()") else ()
+#
+#     return func
 
 
-def str_to_set_func(sub_func):
-    def func(string: str):
-        return {sub_func(i) for i in map(str.strip, string.strip(" {}").split(","))} if string.strip(" {}") else set()
+# def str_to_list_func(sub_func):
+#     def func(string: str):
+#         return [sub_func(i) for i in map(str.strip, string.strip(" []").split(","))] if string.strip(" []") else []
+#
+#     return func
 
-    return func
+
+# def str_to_set_func(sub_func):
+#     def func(string: str):
+#         return {sub_func(i) for i in map(str.strip, string.strip(" {}").split(","))} if string.strip(" {}") else set()
+#
+#     return func
 
 
-def str_to_dict_func(sub_func1, sub_func2):
-    def func(string: str):
-        if string.strip(" {}"):
-            result = {}
-            for i in map(str.strip, string.strip(" {}").split(",")):
-                key, value = i.split(":")
-                result[sub_func1(key)] = sub_func2(value)
-            return result
-        else:
-            return {}
-
-    return func
+# def str_to_dict_func(sub_func1, sub_func2):
+#     def func(string: str):
+#         if string.strip(" {}"):
+#             result = {}
+#             for i in map(str.strip, string.strip(" {}").split(",")):
+#                 key, value = i.split(":")
+#                 result[sub_func1(key)] = sub_func2(value)
+#             return result
+#         else:
+#             return {}
+#
+#     return func
 
 # </editor-fold>
 
+
+def get_type_func(value, parent, col):
+    for instance in [int, str, float, complex, bool, list, dict, tuple, set, range, np.ndarray]:
+        if isinstance(value, instance):  # checks a bunch of instances, and if it is one of them,
+            if instance in [int, str, float, complex, bool, list, dict, tuple, set]:
+                type_func = ast.literal_eval
+
+            elif instance is range:
+                type_func = lambda string: range(*(
+                    int(i) for i in string.replace(" ", "").replace(")", "").split("(")[1].split(",")))
+
+            elif instance is np.ndarray:
+                parent.setItem(parent.current_row, col, QTableWidgetItem(
+                    json.dumps(value.tolist())))
+                type_func = lambda string: np.array(json.loads(string))
+            break
+    else:
+        if value is None:
+            type_func = ast.literal_eval
+        else:
+            raise NotImplementedError(
+                "the instance you are using (the type of the variable provided) is currently not supported"
+                "do you think it should be? send me an e-mail at rikmulder7@gmail.com, and mention the "
+                f"type was probably: {type(value)}")
+
+    return type_func

@@ -435,11 +435,23 @@ class InputWidget(QTableWidget):    # table for all inputs
             :param init_value: The initial value of the inputbox.
             :param var_name: The name of the created variable. If `var_name` is not provided, the variable will be
                 named name.
-            :param type_func: The function that takes in a string and returns the value as the correct type. For example
+            :param type_func: The function that takes in a string and returns the value as the correct type. Usually,
+                this will default to `ast.literal_eval`, which works for a lot of data types: str, float, complex, bool,
+                tuple, list, dict, set and None. If `type_func` is set to None (default value), then it will be set to
+                `ast.literal_eval` if `init_value` is one of the mentioned data types. If init_value is a `np.array` or
+                a range object, this is also handled, but it needs to be explicitly changed to ast.literal_eval if the
+                data type is changed during runtime. If you have a different data type that doesn't work with automatic
+                handling a function can be passed to this argument that takes in a string and returns the desired value.
+                Note that `ast.literal_eval` is a lot slower than for example `float`, so if you are sure the input is
+                a float, a minor speedup can be achieved by explicitly setting `type_func=float`.
+
+                For example
                 `type_func` can be `int`. So that each value is turned into an int. If it is not given it is
                 automatically determined, which works for the following instances: str, float, complex, bool, range, and
                 the following iterables: tuple, list, dict, set. It is assumed that each of their elements is one of the
                 previously mentioned instances, and they are not nested. Only np.ndarrays allow nesting.
+                Can be refreshed by passing a value of the new type to refresh_type_func.
+                Note: if you aren't sure if the type will be a list or a value, you can use type_func=json.loads
             :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
 
             """
@@ -468,49 +480,16 @@ class InputWidget(QTableWidget):    # table for all inputs
 
             parent.input_varnames.append(var_name)
             # </editor-fold>
-            parent.setItem(parent.current_row, self.col, QTableWidgetItem(str(init_value)))
+            if isinstance(init_value, str):
+                parent.setItem(parent.current_row, self.col, QTableWidgetItem('"' + init_value + '"'))
+            else:
+                parent.setItem(parent.current_row, self.col, QTableWidgetItem(str(init_value)))
 
             self.current_name = var_name
             self.printing_val = False
 
             if type_func is None:
-                for instance in [int, str, float, complex, bool, range, list, dict, tuple, set, np.ndarray]:
-                    if isinstance(init_value, instance):  # checks a bunch of instances, and if it is one of them,
-                        if instance in [float, complex]:
-                            self.type_func = instance
-                        elif instance is int:
-                            self.type_func = float
-                        elif instance is str:
-                            self.type_func = stringify
-                        elif instance is bool:
-                            self.type_func = str_to_bool
-
-                        elif instance in [list, dict]:
-                            self.type_func = json.loads
-                        elif instance is tuple:
-                            self.type_func = lambda string: tuple(map(tuple, json.loads(
-                                string.replace("(", "[").replace(")", "]"))))
-                        elif instance is set:
-                            self.type_func = lambda string: set(json.loads(string.replace("{", "[").replace("}", "]")))
-
-                        elif instance is range:
-                            self.type_func = lambda string: range(*(
-                                int(i) for i in string.replace(" ", "").replace(")", "").split("(")[1].split(",")))
-
-                        elif instance is np.ndarray:
-                            parent.setItem(parent.current_row, self.col, QTableWidgetItem(
-                                json.dumps(init_value.tolist())))
-                            self.type_func = lambda string: np.array(json.loads(string))
-                        break
-
-                else:
-                    if init_value is None:
-                        raise ValueError("init_value can not be None")
-                    else:
-                        raise NotImplementedError(
-                            "the instance you are using (the type of the variable provided) is currently not supported"
-                            "do you think it should be? send me an e-mail at rikmulder7@gmail.com, and mention the "
-                            f"type was probably: {type(init_value)}")
+                self.type_func = get_type_func(init_value, parent, self.col)
             else:
                 self.type_func = type_func
 

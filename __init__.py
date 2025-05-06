@@ -89,23 +89,23 @@ def get_gradient(cmap, style="horizontal", position=None, extend="pad"):
     """
     Returns a gradient used as gradient for `squap.plot`
 
-    type can be "horizontal", "vertical", "linear", "radial" or "conical"
+    Type can be "horizontal", "vertical", "linear", "radial" or "conical"
     position depends on type. For linear it specifies the point at which the color is the start of the cmap, and the point at
     which it is the end of the cmap.
     extend decides how the gradient behaves outside the specified range
 
-    :param cmap: The colormap used as gradient. Can either be a string, or a dictionary representing the colormap, which
-        is a dictionary that specifies the color for different inputs. The color corresponding to 0 is indicated by
-        cmap[0], and cmap[1] is the end. The rest of the dictionary entries are other points at which the color is
+    :param cmap: The colormap used as gradient. It Can either be a string, or a dictionary representing the colormap,
+        which is a dictionary that specifies the color for different inputs. The color corresponding to 0 is indicated
+        by cmap[0], and cmap[1] is the end. The rest of the dictionary entries are other points at which the color is
         specified. The gradient is a linear interpolation between each of these points.
     :type cmap: str or dict
-    :param style: The style of the gradient. Can be "horizontal" or "vertical" for a simple horizontal or vertical
-        gradient. Can be "linear", which forms a gradient from `position[0]` (tuple) to `position[1]` (tuple). Can be
-        "radial", which forms a radial gradient with centre `position[0]` (tuple) and radius `position[1]` (float). If
-        `position` is not specified, this is automatically determined. Can be "conical", which forms a conical gradient
-        (a gradient that is constant along the radius and varies along as the angle varies). `position[0]` specifies
-        the centre, and `postion[1]` the starting angle (in degrees from the positive y-axis). If `position` is not
-        provided, it is automatically determined, with starting angle set to 0. Defaults to "horizontal".
+    :param style: The style of the gradient. It can be "horizontal" or "vertical" for a simple horizontal or vertical
+        gradient. It can be "linear", which forms a gradient from `position[0]` (tuple) to `position[1]` (tuple). It can
+        be "radial", which forms a radial gradient with center `position[0]` (tuple) and radius `position[1]` (float).
+        If `position` is not specified, this is automatically determined. Can be "conical", which forms a conical
+        gradient (a gradient that is constant along the radius and varies along as the angle varies). `position[0]`
+        specifies the center, and `postion[1]` the starting angle (in degrees from the positive y-axis). If `position`
+        is not provided, it is automatically determined, with starting angle set to 0. Defaults to "horizontal".
     :type style: str
     :param position: See style.
     :type position: tuple
@@ -225,7 +225,7 @@ def add_slider(
     :param max_value: The maximum value of the slider.
     :param n_ticks: The number of ticks on the slider. Either provide n_ticks or tick_interval. Defaults to 50.
     :param tick_interval: The interval between ticks. If provided, overwrites n_ticks.
-    :param only_ints: Wether to use whole numbers as ticks. If set to True, `tick_interval` is used as spacing
+    :param only_ints: Whether to use whole numbers as ticks. If set to True, `tick_interval` is used as spacing
         between the ticks. If `tick_interval` is not specified, it defaults to 1. Converts `tick_interval` to
         int and changes the variable to always be an integer. Not allowed in combination with n_ticks or
         logscale. Defaults to False
@@ -336,7 +336,7 @@ def add_throttle(
     :param time_var: If set to None (default), actual time will be used. It can also be set to the name of a
         variable in squap.var as a string. Then that variable will be regarded as time: if it increases by 1,
         the created variable will be changed by changerate.
-    :param custom_func: the function that changes the created variable. Overrides `absolute`. It must take three
+    :param custom_func: The function that changes the created variable. Overrides `absolute`. It must take three
         arguments: `old_value`, `dt` and `slider_value` and must return the new value. `old_value` is the value
         of the variable the previous time the function was run, dt is the change in time since then (takes
         `time_var` into account). `slider_value` is a value between -1 and 1, dependent on the slider position.
@@ -431,8 +431,8 @@ def stable_fps():
 
 def benchmark(n_frames=None, total_seconds=None):
     """
-    Run the program untill it is closed and then report the total frames and fps. If n_frames or total_seconds are
-    specified the program will quit when either has passed.
+    Run the program until it is closed and then report the total frames and fps. If n_frames or total_seconds are
+        specified, the program will quit when either has passed.
 
     :param n_frames: Number of frames to run the program for
     :type n_frames: int
@@ -634,7 +634,7 @@ def is_alive():
 
 def refresh(wait_interval=True, call_update_funcs=True):
     """
-    refreshes everything that is shown on screen, and waits according to interval (set with squap.set_interval)
+    Refreshes everything shown on screen, and waits according to interval (set with squap.set_interval)
 
     :param wait_interval: If set to `False`, doesn't wait for
     """
@@ -719,8 +719,8 @@ def export(filename, full_window=False):
     """
     saves the current window as an image to file `filename`
 
-    :param filename: name of the file to which the image must be saved. Extension can be png, jpg, jpeg, bmp, pbm,
-    pgm, ppm, xbm and xpm. Defaults to png if no extension is provided
+    :param filename: Name of the file to which the image must be saved. Extension can be png, jpg, jpeg, bmp, pbm,
+        pgm, ppm, xbm and xpm. Defaults to png if no extension is provided
     :param full_window: whether to include the input window as well.
     """
     if full_window:
