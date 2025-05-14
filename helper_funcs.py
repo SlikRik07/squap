@@ -1,6 +1,9 @@
+import ast
+
 import numpy as np
-from PySide6.QtGui import Qt
+from PySide6.QtWidgets import QTableWidgetItem
 from pyqtgraph import mkPen, mkColor
+import json
 
 
 # def map_color(color_name):

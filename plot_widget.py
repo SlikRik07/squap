@@ -311,7 +311,7 @@ class PlotCurve(PlotDataItem):
             - `width` (float): Changes the width (in pixels) of the curve. `w` is also allowed instead of `width`.
             - `line_color`: Changes the color of the line. It can only be a single color name, an RGB tuple,
                 a float between 0.0 (black) and 1.0 (white), an integer (where each integer corresponds to a different
-                color already), or a hex code.
+                color already), a hex code or of type gradient (created with `squap.get_gradient`).
             - `dashed` (bool): If True, draws a dashed line between the points (for more options see dash_pattern).
                 Starts off as False.
             - `dash_pattern` (List[int]): How the dashes are spaced. For example, if `dash_pattern` is [16, 16, 4, 16],
@@ -395,20 +395,24 @@ class PlotCurve(PlotDataItem):
                 if self.pen is None:
                     self.pen = mkPen()
                 if "line_color" in pen_kwargs:
-                    self.pen.setBrush(get_single_color(pen_kwargs["line_color"]))
-                if "gradient" in pen_kwargs:
-                    self.gradient = kwargs["gradient"]
-                    if self.gradient.autoscale:
-                        if self.gradient.style == "horizontal":
-                            self.gradient.setStart(min(x), 0)
-                            self.gradient.setFinalStop(max(x), 0)
-                        elif self.gradient.style == "vertical":
-                            self.gradient.setStart(0, min(y))
-                            self.gradient.setFinalStop(0, max(y))
-                        else:           # gradient.style must be "radial" here
-                            self.gradient.setStart(min(x), min(y))
+                    if isinstance(pen_kwargs["line_color"], QGradient):
+                        self.gradient = pen_kwargs["line_color"]
+                        if self.gradient.autoscale:
+                            if self.gradient.style == "horizontal":
+                                self.gradient.setStart(min(x), 0)
+                                self.gradient.setFinalStop(max(x), 0)
+                            elif self.gradient.style == "vertical":
+                                self.gradient.setStart(0, min(y))
+                                self.gradient.setFinalStop(0, max(y))
+                            else:           # gradient.style must be "radial" here
+                                self.gradient.setStart(min(x), min(y))
 
-                    self.pen.setBrush(self.gradient)
+                        for key, value in self.gradient.cmap.items():
+                            self.gradient.setColorAt(key, get_single_color(value))
+
+                        self.pen.setBrush(self.gradient)
+                    else:
+                        self.pen.setBrush(get_single_color(pen_kwargs["line_color"]))
 
                 if "width" in pen_kwargs:
                     self.pen.setWidth(pen_kwargs["width"])

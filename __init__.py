@@ -87,25 +87,24 @@ subplots = window.create_subplots
 
 def get_gradient(cmap, style="horizontal", position=None, extend="pad"):
     """
-    Returns a gradient used as gradient for `squap.plot`
+    The gradient can be seen as a 2D image of a gradient which appears at each pixel that lies on the line. When `style`
+    of the gradient is set to "horizontal" or "vertical", or "radial" without providing `position`, the bounds of the
+    gradient will be automatically determined when set_data is called, which can decrease performance. So, specify
+    `position` for optimal performance. Default is None.
 
-    Type can be "horizontal", "vertical", "linear", "radial" or "conical"
-    position depends on type. For linear it specifies the point at which the color is the start of the cmap, and the point at
-    which it is the end of the cmap.
-    extend decides how the gradient behaves outside the specified range
-
-    :param cmap: The colormap used as gradient. It Can either be a string, or a dictionary representing the colormap,
-        which is a dictionary that specifies the color for different inputs. The color corresponding to 0 is indicated
-        by cmap[0], and cmap[1] is the end. The rest of the dictionary entries are other points at which the color is
+    :param cmap: The colormap used as gradient. Can either be a string, or a dictionary representing the colormap, which
+        is a dictionary that specifies the color for different inputs. The color corresponding to 0 is indicated by
+        cmap[0], and cmap[1] is the end. The rest of the dictionary entries are other points at which the color is
         specified. The gradient is a linear interpolation between each of these points.
     :type cmap: str or dict
-    :param style: The style of the gradient. It can be "horizontal" or "vertical" for a simple horizontal or vertical
-        gradient. It can be "linear", which forms a gradient from `position[0]` (tuple) to `position[1]` (tuple). It can
-        be "radial", which forms a radial gradient with center `position[0]` (tuple) and radius `position[1]` (float).
-        If `position` is not specified, this is automatically determined. Can be "conical", which forms a conical
-        gradient (a gradient that is constant along the radius and varies along as the angle varies). `position[0]`
-        specifies the center, and `postion[1]` the starting angle (in degrees from the positive y-axis). If `position`
-        is not provided, it is automatically determined, with starting angle set to 0. Defaults to "horizontal".
+    :param style: The style of the gradient. Can be "horizontal" or "vertical" for a simple horizontal or vertical
+        gradient. Can be "linear", which forms a gradient from `position[0]` (tuple) to `position[1]` (tuple). Can be
+        "radial", which forms a radial gradient with centre `position[0]` (tuple) and radius `position[1]` (float). If
+        `position` is not specified, this is automatically determined. Can be "conical", which forms a conical gradient
+        (a gradient that is constant along the radius and varies along as the angle varies). `position[0]` (tuple)
+        specifies the centre, and `postion[1]` (float) the starting angle (in degrees from the positive y-axis). If
+        `position` is not provided, it is automatically determined, with starting angle set to 0. Defaults to
+        "horizontal".
     :type style: str
     :param position: See style.
     :type position: tuple
