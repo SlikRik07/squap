@@ -2,10 +2,8 @@ import numpy as np
 import typing
 from collections.abc import Callable
 from time import time as current_time
-import json
 
-from .helper_funcs import (is_iter, textify, stringify, str_to_bool, str_to_tuple_func, str_to_list_func,
-                           str_to_set_func, str_to_dict_func)
+from .helper_funcs import (is_iter, textify, get_type_func)
 
 from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem,

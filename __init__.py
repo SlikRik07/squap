@@ -22,7 +22,7 @@ from PySide6.QtCore import QPointF
 __all__ = [
     "var", "plot", "scatter", "set_xlim", "set_ylim", "legend", "set_title", "lock_zoom", "subplots", "get_gradient",
     "merge", "set_interval", "on_refresh", "on_mouse_click", "add_slider", "add_checkbox", "add_inputbox", "add_button",
-    "add_dropdown", "add_throttle", "add_text", "display_fps", "resize", "set_input_partition", "is_alive", "refresh",
+    "add_dropdown", "add_rate_slider", "add_text", "display_fps", "resize", "set_input_partition", "is_alive", "refresh",
     "show_window", "show", "export", "export_video"
 ]
 
@@ -335,7 +335,7 @@ def add_rate_slider(
     :param time_var: If set to None (default), actual time will be used. It can also be set to the name of a
         variable in squap.var as a string. Then that variable will be regarded as time: if it increases by 1,
         the created variable will be changed by changerate.
-    :param custom_func: the function that changes the created variable. Overrides `absolute`. It must take three
+    :param custom_func: The function that changes the created variable. Overrides `absolute`. It must take three
         arguments: `old_value`, `dt` and `slider_value` and must return the new value. `old_value` is the value
         of the variable the previous time the function was run, dt is the change in time since then (takes
         `time_var` into account). `slider_value` is a value between -1 and 1, dependent on the slider position.
@@ -431,7 +431,7 @@ def stable_fps():
 def benchmark(n_frames=None, total_seconds=None):
     """
     Run the program until it is closed and then report the total frames and fps. If n_frames or total_seconds are
-        specified, the program will quit when either has passed.
+    specified, the program will quit when either has passed.
 
     :param n_frames: Number of frames to run the program for
     :type n_frames: int
@@ -633,7 +633,7 @@ def is_alive():
 
 def refresh(wait_interval=True, call_update_funcs=True):
     """
-    Refreshes everything shown on screen, and waits according to interval (set with squap.set_interval)
+    Refreshes everything that is shown on screen, and waits according to interval (set with squap.set_interval)
 
     :param wait_interval: If set to `False`, doesn't wait for
     """

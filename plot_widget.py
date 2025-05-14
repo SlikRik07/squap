@@ -2,7 +2,7 @@ import warnings
 import numpy as np
 
 from pyqtgraph import PlotDataItem, PlotItem, TextItem, ImageItem, mkPen
-from PySide6.QtGui import Qt, QLinearGradient, QRadialGradient, QConicalGradient, QPen, QBrush
+from PySide6.QtGui import Qt, QLinearGradient, QRadialGradient, QConicalGradient, QGradient, QPen, QBrush
 from .helper_funcs import is_iter, get_single_color, is_multiple_colors
 
 
@@ -379,8 +379,8 @@ class PlotCurve(PlotDataItem):
             if x is None:
                 x = np.zeros(len(y))
 
-        other_kwargs = {}           # setData needs to be done in one command, so other kwargs that need to be passed to
-        # it, are added to this dict. If the data is updated, this is also passedas the kwargs.
+        other_kwargs = {}           # `setData` needs to be done in one command, so other kwargs that need to be passed
+        # to it are added to this dict. If the data is updated, this is also passed as the kwargs.
         if kwargs:      # if anything else is changed, run this bit
             new_kwargs = self.transform_kwargs(kwargs)
 
