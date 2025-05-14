@@ -568,7 +568,7 @@ class InputWidget(QTableWidget):    # table for all inputs
             :param func: The function which is run on button press
             """
             Box.__init__(self, parent=parent)
-            QPushButton.__init__(self, parent=parent, name=name)
+            QPushButton.__init__(self, parent=parent, text=name)
 
             parent.add_widget()
             parent.setSpan(parent.current_row, 0, 1, 3)
