@@ -1,18 +1,14 @@
 # starts off by creating an instance of main_window, containing a plot widget.
 import time
 
-import numba
-
 from .main_window import MainWindow
-from .variables import Variables
-from .plot_widget import PlotCurve, PlotWidget
+from .plot_widget import PlotWidget
 
 from time import perf_counter as current_time
 import os.path
 import numpy as np
 import cv2  # doesn't work with numpy2 yet
 from argparse import Namespace
-import typing
 
 from pyqtgraph.Qt import QtCore, QtGui
 from pyqtgraph import mkQApp, TextItem

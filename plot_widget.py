@@ -1,4 +1,3 @@
-import warnings
 import numpy as np
 
 from pyqtgraph import PlotDataItem, PlotItem, TextItem, ImageItem, mkPen
