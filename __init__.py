@@ -319,35 +319,35 @@ def add_dropdown(
                                         print_value)
 
 
-def add_throttle(
+def add_rate_slider(
         name: str, init_value=1.0, changerate=10.0, absolute=False, time_var=None,
         custom_func=None, var_name=None, print_value=False
 ):
     """
-    Adds a throttle with the given parameters.
+    Adds a rate_slider with the given parameters.
 
-    :param name: The name in front of the throttle.
-    :param init_value: The initial value of the throttle.
+    :param name: The name in front of the rate_slider.
+    :param init_value: The initial value of the rate_slider.
     :param changerate: Change to the value of the variable per second (how it changes depends on `absolute`),
-        multiplied by the current throttle position (value between -1 and 1).
+        multiplied by the current rate_slider position (value between -1 and 1).
     :param absolute: How the value of the variable is changed. If absolute is True, changerate will be added
         every second. If it is set to False, the variable will be multiplied be changerate every second.
     :param time_var: If set to None (default), actual time will be used. It can also be set to the name of a
         variable in squap.var as a string. Then that variable will be regarded as time: if it increases by 1,
         the created variable will be changed by changerate.
-    :param custom_func: The function that changes the created variable. Overrides `absolute`. It must take three
+    :param custom_func: the function that changes the created variable. Overrides `absolute`. It must take three
         arguments: `old_value`, `dt` and `slider_value` and must return the new value. `old_value` is the value
         of the variable the previous time the function was run, dt is the change in time since then (takes
         `time_var` into account). `slider_value` is a value between -1 and 1, dependent on the slider position.
     :param var_name: The name of the created variable. If var_name is not provided, the variable will be named name.
     :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
-    :return: The throttle widget.
+    :return: The rate_slider widget.
     """
 
     if not window.input_widget:
         window.init_input()
 
-    return window.input_widget.Throttle(
+    return window.input_widget.rate_slider(
         window.input_widget, window.update_funcs, name, init_value, changerate,
         absolute, time_var, custom_func, var_name, print_value
     )
@@ -503,16 +503,16 @@ def benchmark(n_frames=None, total_seconds=None):
 # def align_camera():
 #     window.plot_widget.animated = True
 #     current_params = window.plot_widget.cameraParams()
-#     add_throttle("distance", current_params["distance"], changerate=2)
+#     add_rate_slider("distance", current_params["distance"], changerate=2)
 #     row_js_1 = get_current_row()
 #     slider_1 = add_slider("azimuth", current_params["azimuth"], 0, 360, n_ticks=72)
 #     slider_2 = add_slider("elevation", current_params["elevation"], -90, 90, n_ticks=180)
 #     slider_3 = add_slider("fov", current_params["fov"], 0, 180, n_ticks=180)
-#     add_throttle("x", 0, absolute=True, changerate=5)       # todo: change init_value to current_params.center.x
+#     add_rate_slider("x", 0, absolute=True, changerate=5)       # todo: change init_value to current_params.center.x
 #     row_js_x = get_current_row()
-#     add_throttle("y", 0, absolute=True, changerate=5)
+#     add_rate_slider("y", 0, absolute=True, changerate=5)
 #     row_js_y = get_current_row()
-#     add_throttle("z", 0, absolute=True, changerate=5)
+#     add_rate_slider("z", 0, absolute=True, changerate=5)
 #     row_js_z = get_current_row()
 #
 #     def update_cam_params():
@@ -523,7 +523,7 @@ def benchmark(n_frames=None, total_seconds=None):
 #             fov=var.fov
 #         )
 #
-#     def throttle_update(row):
+#     def rate_slider_update(row):
 #         if row == row_js_1:
 #             update_cam_params()
 #
@@ -537,15 +537,15 @@ def benchmark(n_frames=None, total_seconds=None):
 #             vector
 #         )
 #
-#     def throttle_pos_update(row):
+#     def rate_slider_pos_update(row):
 #         if row == row_js_x or row == row_js_y or row == row_js_z:
 #             update_cam_pos()
 #
 #     slider_1.valueChanged.connect(update_cam_params)
 #     slider_2.valueChanged.connect(update_cam_params)
 #     slider_3.valueChanged.connect(update_cam_params)
-#     window.input_widget.cellChanged.connect(throttle_update)
-#     window.input_widget.cellChanged.connect(throttle_pos_update)
+#     window.input_widget.cellChanged.connect(rate_slider_update)
+#     window.input_widget.cellChanged.connect(rate_slider_pos_update)
 #     update_cam_params()
 #
 #     def get_params():

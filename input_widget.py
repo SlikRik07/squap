@@ -46,17 +46,17 @@ class InputWidget(QTableWidget):    # table for all inputs
         self.verticalHeader().hide()
 
         self.col_partition = 1/3                # where is the partition between col 0 & col 1, should be between 0&1
-        self.throttle_space = 60                # pixels of space a throttle gets
+        self.rate_slider_space = 60                # pixels of space a rate_slider gets
 
         self.setColumnWidth(0, int(width * self.col_partition))
-        self.setColumnWidth(1, int(self.throttle_space))
-        self.setColumnWidth(2, int(width * (1-self.col_partition))-self.throttle_space)
+        self.setColumnWidth(1, int(self.rate_slider_space))
+        self.setColumnWidth(2, int(width * (1-self.col_partition))-self.rate_slider_space)
 
-        # this cell is split in 2 for the throttle
+        # this cell is split in 2 for the rate_slider
 
         self.current_row = -1
         self.variables = variables
-        self.input_varnames = []     # the names of every variable indexed by row for stuff like linking and throttle
+        self.input_varnames = []     # the names of every variable indexed by row for stuff like linking and rate_slider
 
     def resizeEvent(self, event) -> None:       # event is not used since every necessary parameter is in self
         width = self.width()
@@ -70,8 +70,8 @@ class InputWidget(QTableWidget):    # table for all inputs
             width -= 18
 
         self.setColumnWidth(0, int(width * self.col_partition))
-        self.setColumnWidth(1, int(self.throttle_space))
-        self.setColumnWidth(2, int(width * (1-self.col_partition))-self.throttle_space)
+        self.setColumnWidth(1, int(self.rate_slider_space))
+        self.setColumnWidth(2, int(width * (1-self.col_partition))-self.rate_slider_space)
 
     def add_widget(self):
         self.current_row += 1
@@ -702,19 +702,19 @@ class InputWidget(QTableWidget):    # table for all inputs
         def print_val(self):
             print(f"{self.current_name} = {self.options[self.currentIndex()]}")
 
-    class Throttle(Box, QSlider):
+    class rate_slider(Box, QSlider):
         def __init__(self, parent, update_funcs, name: str, init_value: float, change_rate=10.0, absolute=False,
                      time_var=None, custom_func=None, var_name=None, print_value=False):
             """
             Creates a RateSlider with the given parameters.
     
             :param parent: The parent of the box, set to `squap.window.input_widget`.
-            :param update_funcs: This is needed for updating the throttle while holding it, provide
+            :param update_funcs: This is needed for updating the rate_slider while holding it, provide
                 squap.window.update_funcs
-            :param name: The name in front of the throttle.
-            :param init_value: The initial value of the throttle.
+            :param name: The name in front of the rate_slider.
+            :param init_value: The initial value of the rate_slider.
             :param change_rate: Change to the value of the variable per second (how it changes depends on `absolute`),
-                multiplied by the current throttle position (value between -1 and 1).
+                multiplied by the current rate_slider position (value between -1 and 1).
             :param absolute: How the value of the variable is changed. If absolute is True, changerate will be added
                 every second. If it is set to False, the variable will be multiplied be changerate every second.
             :param time_var: If set to None (default), actual time will be used. It can also be set to the name of a
@@ -726,7 +726,7 @@ class InputWidget(QTableWidget):    # table for all inputs
                 `time_var` into account). `slider_value` is a value between -1 and 1, dependent on the slider position.
             :param var_name: The name of the created variable. If var_name is not provided, the variable will be named name.
             :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
-            :return: The throttle widget.
+            :return: The rate_slider widget.
             """
             Box.__init__(self, parent=parent)
             QSlider.__init__(self)
@@ -734,18 +734,18 @@ class InputWidget(QTableWidget):    # table for all inputs
             (self.var_name, self.change_rate, self.absolute, self.time_var,
              self.custom_func) = var_name, change_rate, absolute, time_var, custom_func
             self.row = parent.current_row + 1
-            # this bit is a bit different for the throttle \/\/
+            # this bit is a bit different for the rate_slider \/\/
             # <editor-fold desc="add_widget and init name&var_name">
             parent.add_widget()
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
-                throttle_col = 0
+                rate_slider_col = 0
                 self.col = 1
                 parent.setSpan(parent.current_row, 0, 1, 2)
 
                 if var_name is None:
                     raise ValueError("name can only be empty if var_name is specified")  # #1004
             else:
-                throttle_col = 1
+                rate_slider_col = 1
                 self.col = 2
                 # parent.setSpan(parent.current_row, 1, 1, 2)
                 self.textbox = QLabel(name)
@@ -763,7 +763,7 @@ class InputWidget(QTableWidget):    # table for all inputs
             setattr(parent.variables, self.current_name, init_value)
 
             self.slider = QSlider(Qt.Orientation.Horizontal, parent)
-            parent.setCellWidget(parent.current_row, throttle_col, self.slider)
+            parent.setCellWidget(parent.current_row, rate_slider_col, self.slider)
             self.slider.setRange(0, 200)
             self.slider.setValue(100)
             self.slider.setStyleSheet("""
@@ -783,11 +783,11 @@ class InputWidget(QTableWidget):    # table for all inputs
                         margin: -4px 0;
                     }
                 """)
-            self.slider.in_middle = True        # if the throttle is set to the middle, nothing needs to happen
-            # so if this is set to False, it doesn't run the stuff, so when the throttle is released, the impact on
+            self.slider.in_middle = True        # if the rate_slider is set to the middle, nothing needs to happen
+            # so if this is set to False, it doesn't run the stuff, so when the rate_slider is released, the impact on
             # performance is minimal
 
-            def release_func():  # resets throttle to 0 when released
+            def release_func():  # resets rate_slider to 0 when released
                 self.slider.setValue(100)
                 self.slider.in_middle = True
 
@@ -802,7 +802,7 @@ class InputWidget(QTableWidget):    # table for all inputs
             setattr(parent.variables, self.current_name, init_value)
             self.parent.cellChanged.connect(self.on_change)
 
-            # <editor-fold desc="create throttle update func">
+            # <editor-fold desc="create rate_slider update func">
             if time_var is None:
                 self.timer = current_time()
                 
@@ -859,7 +859,7 @@ class InputWidget(QTableWidget):    # table for all inputs
         def change_params(self, **kwargs):
             """
             Changes the parameters of the rate-slider. Only keyword arguments are accepted, and takes all arguments that
-            `add_throttle` accepts, except `init_value`.
+            `add_rate_slider` accepts, except `init_value`.
             """
             turn_on_print_func = False
             update_new_calc = False
