@@ -559,6 +559,10 @@ class InputWidget(QTableWidget):    # table for all inputs
         def print_val(self):
             print(f"{self.current_name} = {self.val()}")
 
+        def refresh_type_func(self, value):         # Extra function for when type_func must be changed during runtime,
+            self.type_func = get_type_func(value, self.parent, self.col)        # is not explained anywhere
+            return self
+
     class Button(Box, QPushButton):
         def __init__(self, parent, name: str, func=None):
             """
