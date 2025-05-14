@@ -1,9 +1,8 @@
 import numpy as np
 import typing
-from collections.abc import Callable
 from time import time as current_time
 
-from .helper_funcs import (is_iter, textify, get_type_func)
+from .helper_funcs import textify, get_type_func
 
 from PySide6.QtWidgets import (
     QTableWidget, QTableWidgetItem,
