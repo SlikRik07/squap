@@ -81,18 +81,25 @@ subplots = window.create_subplots
 #     return window.plot_widget.base_plot("mesh", *args, **kwargs)
 
 
-def get_gradient(cmap, style="horizontal", position=None, extend="pad"):
+def get_gradient(cmap, style="horizontal", position=None, extend="pad", resolution=256):
     """
     The gradient can be seen as a 2D image of a gradient which appears at each pixel that lies on the line. When `style`
     of the gradient is set to "horizontal" or "vertical", or "radial" without providing `position`, the bounds of the
     gradient will be automatically determined when set_data is called, which can decrease performance. So, specify
     `position` for optimal performance. Default is None.
 
-    :param cmap: The colormap used as gradient. Can either be a string, or a dictionary representing the colormap, which
-        is a dictionary that specifies the color for different inputs. The color corresponding to 0 is indicated by
-        cmap[0], and cmap[1] is the end. The rest of the dictionary entries are other points at which the color is
-        specified. The gradient is a linear interpolation between each of these points.
-    :type cmap: str or dict
+    :param cmap: The colormap used as gradient. Can either be a string, a dictionary, a list
+        of colors or an instance of `matplotlib.colors.Colormap`.
+        When a string is passed, it is any string accepted by matplotlib or cmasher. When a colormap exists for both
+        matplotlib and cmasher, matplotlib will be used. Use "mpl_ocean" and "cmasher_ocean" to explicitly select
+        matplotlib or cmasher.
+        When a dictionary is passed, it specifies the color for different inputs. The color corresponding to
+        0 is indicated by cmap[0], and cmap[1] is the end. The rest of the dictionary entries are other points at which
+        the color is specified. The gradient is a linear interpolation between each of these points.
+        When a list of colors is passed, the colormap is a linear interpolation between the colors, equally spaced
+        between 0 and 1.
+        When a `matplotlib.colors.Colormap` instance is passed, it is used as cmap with the specified resolution.
+    :type cmap: str, dict
     :param style: The style of the gradient. Can be "horizontal" or "vertical" for a simple horizontal or vertical
         gradient. Can be "linear", which forms a gradient from `position[0]` (tuple) to `position[1]` (tuple). Can be
         "radial", which forms a radial gradient with centre `position[0]` (tuple) and radius `position[1]` (float). If
@@ -106,6 +113,10 @@ def get_gradient(cmap, style="horizontal", position=None, extend="pad"):
     :type position: tuple
     :param extend: How the gradient behaves outside the range specified in `position`. Can be "pad", "repeat" or
         "reflect" (only applies when style is "linear" or "radial" and `position` is specified). Defaults to "pad".
+    :type extend: str
+    :param resolution: The resolution of the gradient, when it is a matplotlib (or cmasher) cmap. Does not do anything
+        when the cmap is a dict or a list. Defaults to 256.
+    :type resolution: int
 
     :return:
     """
@@ -152,6 +163,7 @@ def get_gradient(cmap, style="horizontal", position=None, extend="pad"):
 
     gradient.cmap = cmap
     gradient.style = style
+    gradient.resolution = resolution
     return gradient
 
 
