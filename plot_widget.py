@@ -3,6 +3,9 @@ import numpy as np
 from pyqtgraph import PlotDataItem, PlotItem, TextItem, ImageItem, mkPen
 from PySide6.QtGui import Qt, QLinearGradient, QRadialGradient, QConicalGradient, QGradient, QPen, QBrush
 from .helper_funcs import is_iter, get_single_color, is_multiple_colors
+from matplotlib import colormaps as mpl_colormaps
+from matplotlib.colors import Colormap
+import cmasher
 
 
 x_old = None
@@ -406,8 +409,47 @@ class PlotCurve(PlotDataItem):
                             else:           # gradient.style must be "radial" here
                                 self.gradient.setStart(min(x), min(y))
 
-                        for key, value in self.gradient.cmap.items():
-                            self.gradient.setColorAt(key, get_single_color(value))
+                        cmap = self.gradient.cmap
+
+                        if isinstance(cmap, str):
+                            if cmap in mpl_colormaps:
+                                cmap = mpl_colormaps[cmap]
+                            elif hasattr(cmasher, cmap):
+                                cmap = getattr(cmasher, cmap)
+                            else:
+                                if cmap[:4] == "mpl_":
+                                    cmap = cmap[4:]
+                                    if cmap in mpl_colormaps:
+                                        cmap = mpl_colormaps[cmap]
+                                    else:
+                                        raise ValueError(
+                                            f"cmap {cmap[4:]} is not an existing cmap in matplotlib."
+                                        )
+                                elif cmap[:8] == "cmasher_":
+                                    cmap = cmap[8:]
+                                    if hasattr(cmasher, cmap):
+                                        cmap = getattr(cmasher, cmap)
+                                    else:
+                                        raise ValueError(
+                                            f"cmap {cmap[8:]} is not an existing cmap in cmasher."
+                                        )
+                                else:
+                                    raise ValueError(
+                                        f"cmap {self.gradient.cmap} is not an existing cmap in matplotlib or cmasher."
+                                    )
+                        if isinstance(cmap, Colormap):
+                            for i in range(self.gradient.resolution):
+                                value = cmap(i/(self.gradient.resolution-1))
+                                self.gradient.setColorAt(i/(self.gradient.resolution-1), get_single_color(value))
+                        elif isinstance(cmap, list):
+                            N = len(cmap)
+                            for i, value in enumerate(cmap):
+                                self.gradient.setColorAt(i/(N-1), get_single_color(value))
+                        elif isinstance(cmap, dict):
+                            for key, value in cmap.items():
+                                self.gradient.setColorAt(key, get_single_color(value))
+                        else:
+                            raise TypeError("cmap is of incorrect type. Must be str, list or dict.")
 
                         self.pen.setBrush(self.gradient)
                     else:
