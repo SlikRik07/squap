@@ -219,7 +219,7 @@ class InputWidget(QTableWidget):    # table for all inputs
                     var_name = name
 
             if self.textbox is None:        # can be done above as well but is done here for generality
-                parent.boxes.insert(row, (self, ))           # todo: change these to insert with row
+                parent.boxes.insert(row, (self, ))
             else:
                 parent.boxes.insert(row, (self.textbox, self))
 
@@ -272,8 +272,7 @@ class InputWidget(QTableWidget):    # table for all inputs
             else:
                 slider_val = np.argmin(np.abs(np.array(self.arr) - init_value))
 
-            setattr(parent.variables, self.current_name, slider_val)
-            print(slider_val)           # todo: incorrect
+            setattr(parent.variables, self.current_name, self.arr[slider_val])
             self.setValue(slider_val)
             self.valueChanged.connect(self.on_change)
 
@@ -851,7 +850,7 @@ class InputWidget(QTableWidget):    # table for all inputs
             :return: The rate_slider widget.
             """
             Box.__init__(self, parent, parent.current_row+1)
-            QSlider.__init__(self)              # todo: check if this can be removed
+            QSlider.__init__(self)
             self.slider = QSlider(Qt.Orientation.Horizontal, parent)    # done here so it can be added to parent.boxes
 
             (self.var_name, self.change_rate, self.absolute, self.time_var,
