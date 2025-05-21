@@ -18,7 +18,7 @@ from PySide6.QtCore import QPointF
 __all__ = [
     "var", "plot", "scatter", "set_xlim", "set_ylim", "legend", "set_title", "lock_zoom", "subplots", "get_gradient",
     "merge", "set_interval", "on_refresh", "on_mouse_click", "add_slider", "add_checkbox", "add_inputbox", "add_button",
-    "add_dropdown", "add_rate_slider", "add_text", "display_fps", "resize", "set_input_partition", "is_alive", "refresh",
+    "add_dropdown", "add_rate_slider", "get_boxes", "add_text", "display_fps", "resize", "set_input_partition", "is_alive", "refresh",
     "show_window", "show", "export", "export_video"
 ]
 
@@ -359,6 +359,13 @@ def add_rate_slider(
         window.input_widget, window.update_funcs, name, init_value, changerate,
         absolute, time_var, custom_func, var_name, print_value
     )
+
+
+def get_boxes():
+    """
+    Returns a list containing all boxes that exist at this point.
+    """
+    return [box_row[-1] for box_row in window.input_widget.boxes]
 
 
 def get_current_row():  # returns row of latest placed widget
