@@ -272,9 +272,8 @@ class InputWidget(QTableWidget):    # table for all inputs
             else:
                 slider_val = np.argmin(np.abs(np.array(self.arr) - init_value))
 
-            setattr(parent.variables, self.current_name, self.arr[slider_val])
-            self.setValue(slider_val)
             self.valueChanged.connect(self.on_change)
+            self.setValue(slider_val)
 
             if print_value:
                 self.valueChanged.connect(self.print_val)
@@ -399,7 +398,10 @@ class InputWidget(QTableWidget):    # table for all inputs
                 slider_val = np.argmin(np.abs(np.log10(np.array(self.arr)) - np.log10(value)))
             else:
                 slider_val = np.argmin(np.abs(np.array(self.arr) - value))
-            self.setValue(slider_val)       # automatically updates var value, todo: check if true
+            self.setValue(slider_val)
+
+        def set_index(self, index):
+            self.setValue(index)
 
         def print_val(self):
             print(f"{self.current_name} = {self.arr[self.value()]}")
@@ -512,8 +514,8 @@ class InputWidget(QTableWidget):    # table for all inputs
         def on_change(self):
             setattr(self.parent.variables, self.current_name, self.val())
 
-        def set_value(self, value):
-            setattr(self.parent.variables, self.current_name, value)
+        def set_value(self, value: bool):
+            self.setChecked(value)
 
         def print_val(self):
             print(f"{self.current_name} = {self.val()}")
@@ -659,8 +661,10 @@ class InputWidget(QTableWidget):    # table for all inputs
 
         def on_change(self, row):
             if row == self.row:
-                print(self.row, self.col)
                 setattr(self.parent.variables, self.current_name, self.type_func(self.parent.item(self.row, self.col).text()))
+
+        def set_value(self, value):
+            setattr(self.parent.variables, self.current_name, value)
 
         def print_val(self):
             print(f"{self.current_name} = {self.val()}")
@@ -705,6 +709,9 @@ class InputWidget(QTableWidget):    # table for all inputs
             return self
 
         def on_change(self):
+            raise ValueError("This function is not defined for a Button")
+
+        def set_value(self, value):
             raise ValueError("This function is not defined for a Button")
 
         def print_val(self):
@@ -829,6 +836,19 @@ class InputWidget(QTableWidget):    # table for all inputs
 
         def on_change(self):
             setattr(self.parent.variables, self.current_name, self.options[self.currentIndex()])
+
+        def set_value(self, value):
+            if self.option_names is None:        # for change_params we need the original value, for this function not.
+                for option in self.options:
+                    if not isinstance(option, str):
+                        option_names = [str(option) for option in self.options]
+                        break
+                else:
+                    option_names = self.options
+            self.setCurrentIndex(option_names.index(value))
+
+        def set_index(self, index):
+            self.setCurrentIndex(index)
 
         def print_val(self):
             print(f"{self.current_name} = {self.options[self.currentIndex()]}")
@@ -1097,6 +1117,9 @@ class InputWidget(QTableWidget):    # table for all inputs
         def on_change(self, row, col):
             if row == self.row and col == self.col:
                 setattr(self.parent.variables, self.current_name, float(self.parent.item(self.row, self.col).text()))
+
+        def set_value(self, value):
+            self.parent.setItem(self.row, self.col, QTableWidgetItem(str(textify(value))))
 
         def print_val(self):
             print(f"{self.current_name} = {self.val()}")
