@@ -11,10 +11,12 @@ from PySide6.QtWidgets import (
 from PySide6.QtCore import Qt
 
 
-class Box:                              # I am not sure if this is required, but I feel like it helps the IDE
-    def __init__(self, parent):         # parent will be the InputWidget
+class Box:              # I am not sure if this is required, but I feel like it helps the IDE and is better organized
+    def __init__(self, parent, row):    # parent will be the InputWidget
         self.parent = parent
         self.change_funcs = []  # this is so that they can be reordered later if necessary
+        self.row = row          # for removing it later
+        self.textbox = None  # so that you can check if a textbox exists for this box
 
     def change_params(self, **kwargs):
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
@@ -22,11 +24,23 @@ class Box:                              # I am not sure if this is required, but
     def bind(self, func):       # For a user to add a function that runs when the value is changed
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
 
+    def unbind(self, func):       # For a user to unbind a function. Also used to unbind all functions when the Box is removed
+        raise NotImplementedError("Subclasses should implement this! Users should not see this.")
+
     def on_change(self, *args):        # Function that updates the var.var_name value upon value change
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
 
     def print_val(self):
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
+
+    def remove(self):
+        # if self.textbox is not None:
+        #     self.textbox.destroy()          # not sure if this does anything
+        print(f"{self = }")
+        self.parent.remove_row(self.row, self)
+
+    def test(self):
+        print(f"{self = }")
 
 
 class InputWidget(QTableWidget):    # table for all inputs
@@ -43,7 +57,7 @@ class InputWidget(QTableWidget):    # table for all inputs
         self.verticalHeader().hide()
 
         self.col_partition = 1/3                # where is the partition between col 0 & col 1, should be between 0&1
-        self.rate_slider_space = 60                # pixels of space a rate_slider gets
+        self.rate_slider_space = 60             # pixels of space a rate_slider gets
 
         self.setColumnWidth(0, int(width * self.col_partition))
         self.setColumnWidth(1, int(self.rate_slider_space))
@@ -53,8 +67,10 @@ class InputWidget(QTableWidget):    # table for all inputs
 
         self.current_row = -1
         self.variables = variables
-        self.input_varnames = []     # the names of every variable indexed by row for stuff like linking and rate_slider
-
+        self.input_varnames = []    # the names of every variable indexed by row for stuff like linking and rate_slider
+        self.boxes = []             # for removing them later (and a nice overview)
+        self.removed_rows = []      # these are the rows that have been removed out of order, so that these are filled
+                                    # up first
     def resizeEvent(self, event) -> None:       # event is not used since every necessary parameter is in self
         width = self.width()
         height = self.height()
@@ -71,12 +87,55 @@ class InputWidget(QTableWidget):    # table for all inputs
         self.setColumnWidth(2, int(width * (1-self.col_partition))-self.rate_slider_space)
 
     def add_widget(self):
-        self.current_row += 1
-        self.setRowCount(self.current_row + 1)
-        table_height = self.rowHeight(0)*(self.current_row+1)+26
-        if table_height >= self.height():
-            # noinspection PyTypeChecker
-            self.resizeEvent(None)
+        if not self.removed_rows:
+            self.current_row += 1
+            self.setRowCount(self.current_row + 1)
+            table_height = self.rowHeight(0)*(self.current_row+1)+26
+            if table_height >= self.height():
+                # noinspection PyTypeChecker
+                self.resizeEvent(None)
+            return self.current_row
+        else:
+            self.removed_rows.sort()
+            new_row = self.removed_rows[0]
+            self.removed_rows.remove(new_row)
+            return new_row
+
+    def remove_row(self, remove_row, remove_box):
+        if remove_row in self.removed_rows or remove_row > self.current_row:
+            print(self.current_row)
+            raise ValueError(f"row {remove_row} is already empty.")
+        print(f"removing row {remove_row}")
+        for func in remove_box.change_funcs:
+            remove_box.unbind(func)
+
+        if not isinstance(remove_box, self.Button):
+            print(f"{remove_box = }")
+            print(f"{remove_box.on_change = }")
+            remove_box.unbind(remove_box.on_change)
+
+        for col, box in enumerate(self.boxes[remove_row]):
+            print(f"{col, box = }")
+            if isinstance(box, self.InputBox) or isinstance(box, self.rate_slider):
+                self.setItem(remove_row, col, QTableWidgetItem(""))
+            else:
+                self.setCellWidget(remove_row, col, None)
+
+        if remove_row == self.current_row:
+            self.current_row -= 1
+            self.setRowCount(self.current_row + 1)
+            self.boxes.pop(-1)
+        else:
+            self.setSpan(remove_row, 0, 1, 1)
+            self.setSpan(remove_row, 1, 1, 1)
+            self.setSpan(remove_row, 2, 1, 1)
+            for col in range(3):
+                item = self.item(remove_row, col)
+                if item:
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make uneditable
+
+            self.removed_rows.append(remove_row)
+            self.boxes[remove_row] = ()
 
     def link_cells(self, row1, row2):
         rows = [row1, row2]
@@ -133,7 +192,7 @@ class InputWidget(QTableWidget):    # table for all inputs
                 is set to position `i`. Overwrites all other parameters (except `init_value`). Defaults to None.
             :return: The slider widget.
             """
-            Box.__init__(self, parent=parent)
+            Box.__init__(self, parent, parent.current_row+1)
             QSlider.__init__(self, parent=parent, orientation=Qt.Orientation.Horizontal)
 
             (self.min_value, self.max_value, self.var_name, self.only_ints, self.logscale, self.custom_arr,
@@ -141,26 +200,31 @@ class InputWidget(QTableWidget):    # table for all inputs
                                                   n_ticks, tick_interval)
             # this bit is the same for most widgets:
             # <editor-fold desc="add_widget and init name&var_name">
-            parent.add_widget()
+            row = parent.add_widget()
             # is set before so that the given value is remembered not the calculated one
 
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 col = 0
-                parent.setSpan(parent.current_row, 0, 1, 3)
+                parent.setSpan(row, 0, 1, 3)
 
                 if var_name is None:
                     raise ValueError("name can only be empty if var_name is specified")  # #1004
             else:
                 col = 1
-                parent.setSpan(parent.current_row, 1, 1, 2)
+                parent.setSpan(row, 1, 1, 2)
                 self.textbox = QLabel(name)
-                parent.setCellWidget(parent.current_row, 0, self.textbox)
+                parent.setCellWidget(row, 0, self.textbox)
 
                 if var_name is None:
                     var_name = name
 
+            if self.textbox is None:        # can be done above as well but is done here for generality
+                parent.boxes.insert(row, (self, ))           # todo: change these to insert with row
+            else:
+                parent.boxes.insert(row, (self.textbox, self))
+
             parent.input_varnames.append(var_name)
-            parent.setCellWidget(parent.current_row, col, self)
+            parent.setCellWidget(row, col, self)
             # </editor-fold>
 
             self.setMinimum(0)
@@ -209,6 +273,7 @@ class InputWidget(QTableWidget):    # table for all inputs
                 slider_val = np.argmin(np.abs(np.array(self.arr) - init_value))
 
             setattr(parent.variables, self.current_name, slider_val)
+            print(slider_val)           # todo: incorrect
             self.setValue(slider_val)
             self.valueChanged.connect(self.on_change)
 
@@ -319,6 +384,14 @@ class InputWidget(QTableWidget):    # table for all inputs
             self.valueChanged.connect(func)
             return self
 
+        def unbind(self, func):
+            if func not in self.change_funcs and func != self.on_change:
+                raise ValueError("Function is not bound to this Box.")
+            self.valueChanged.disconnect(func)
+            if func != self.on_change:
+                self.change_funcs.remove(func)
+            return self
+
         def on_change(self, val):
             setattr(self.parent.variables, self.current_name, self.arr[val])
 
@@ -336,30 +409,35 @@ class InputWidget(QTableWidget):    # table for all inputs
             :param print_value: Whether to print the value of the checkbox when it changes. Defaults to False.
             :return: The checkbox widget.
             """
-            Box.__init__(self, parent=parent)
+            Box.__init__(self, parent, parent.current_row+1)
             QCheckBox.__init__(self)
 
             self.var_name = var_name
 
             # <editor-fold desc="add_widget and init name&var_name">
-            parent.add_widget()
+            row = parent.add_widget()
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 col = 0
-                parent.setSpan(parent.current_row, 0, 1, 3)
+                parent.setSpan(row, 0, 1, 3)
 
                 if var_name is None:
                     raise ValueError("name can only be empty if var_name is specified")  # #1004
             else:
                 col = 1
-                parent.setSpan(parent.current_row, 1, 1, 2)
+                parent.setSpan(row, 1, 1, 2)
                 self.textbox = QLabel(name)
-                parent.setCellWidget(parent.current_row, 0, self.textbox)
+                parent.setCellWidget(row, 0, self.textbox)
 
                 if var_name is None:
                     var_name = name
 
+            if self.textbox is None:        # can be done above as well but is done here for generality
+                parent.boxes.insert(row, (self, ))
+            else:
+                parent.boxes.insert(row, (self.textbox, self))
+
             parent.input_varnames.append(var_name)
-            parent.setCellWidget(parent.current_row, col, self)
+            parent.setCellWidget(row, col, self)
             # </editor-fold>
             self.current_name = var_name
             self.printing_val = False
@@ -417,6 +495,14 @@ class InputWidget(QTableWidget):    # table for all inputs
             self.stateChanged.connect(func)
             return self
 
+        def unbind(self, func):
+            if func not in self.change_funcs and func != self.on_change:
+                raise ValueError("Function is not bound to this Box.")
+            self.stateChanged.disconnect(func)
+            if func != self.on_change:
+                self.change_funcs.remove(func)
+            return self
+
         def on_change(self):
             setattr(self.parent.variables, self.current_name, self.val())
 
@@ -452,35 +538,40 @@ class InputWidget(QTableWidget):    # table for all inputs
             :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
 
             """
-            Box.__init__(self, parent=parent)
-
-            self.row = parent.current_row + 1
+            Box.__init__(self, parent, parent.current_row+1)
             self.var_name = var_name
 
             # <editor-fold desc="add_widget and init name&var_name">
-            parent.add_widget()
+            row = parent.add_widget()
 
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 self.col = 0
-                parent.setSpan(parent.current_row, 0, 1, 3)
+                parent.setSpan(row, 0, 1, 3)
 
                 if var_name is None:
                     raise ValueError("name can only be empty if var_name is specified")  # #1004
             else:
                 self.col = 1
-                parent.setSpan(parent.current_row, 1, 1, 2)
+                parent.setSpan(row, 1, 1, 2)
                 self.textbox = QLabel(name)
-                parent.setCellWidget(parent.current_row, 0, self.textbox)
+                parent.setCellWidget(row, 0, self.textbox)
 
                 if var_name is None:
                     var_name = name
 
+            if self.textbox is None:        # can be done above as well but is done here for generality
+                parent.boxes.insert(row, (self, ))
+            else:
+                parent.boxes.insert(row, (self.textbox, self))
+
             parent.input_varnames.append(var_name)
             # </editor-fold>
+            self.row = row
+
             if isinstance(init_value, str):
-                parent.setItem(parent.current_row, self.col, QTableWidgetItem('"' + init_value + '"'))
+                parent.setItem(row, self.col, QTableWidgetItem('"' + init_value + '"'))
             else:
-                parent.setItem(parent.current_row, self.col, QTableWidgetItem(str(init_value)))
+                parent.setItem(row, self.col, QTableWidgetItem(str(init_value)))
 
             self.current_name = var_name
             self.printing_val = False
@@ -549,8 +640,17 @@ class InputWidget(QTableWidget):    # table for all inputs
             self.parent.cellChanged.connect(actual_func)
             return self
 
+        def unbind(self, func):
+            if func not in self.change_funcs and func != self.on_change:
+                raise ValueError("Function is not bound to this Box.")
+            self.parent.cellChanged.disconnect(func)
+            if func != self.on_change:
+                self.change_funcs.remove(func)
+            return self
+
         def on_change(self, row):
             if row == self.row:
+                print(self.row, self.col)
                 setattr(self.parent.variables, self.current_name, self.type_func(self.parent.item(self.row, self.col).text()))
 
         def print_val(self):
@@ -568,13 +668,15 @@ class InputWidget(QTableWidget):    # table for all inputs
             :param name: The name in front of the button.
             :param func: The function which is run on button press
             """
-            Box.__init__(self, parent=parent)
+            row = parent.add_widget()
+
+            Box.__init__(self, parent, row)
             QPushButton.__init__(self, parent=parent, text=name)
 
-            parent.add_widget()
-            parent.setSpan(parent.current_row, 0, 1, 3)
+            parent.boxes.insert(row, (self, ))
+            parent.setSpan(row, 0, 1, 3)
             parent.input_varnames.append(None)        # so that indexing still works
-            parent.setCellWidget(parent.current_row, 0, self)
+            parent.setCellWidget(row, 0, self)
 
             if func is not None:
                 self.bind(func)         # is a user provided function, so now we can use bind
@@ -587,6 +689,12 @@ class InputWidget(QTableWidget):    # table for all inputs
             self.clicked.connect(func)
             return self
 
+        def unbind(self, func):
+            if func not in self.change_funcs:
+                raise ValueError("Function is not bound to this Box.")
+            self.clicked.disconnect(func)
+            return self
+
         def on_change(self):
             raise ValueError("This function is not defined for a Button")
 
@@ -596,7 +704,7 @@ class InputWidget(QTableWidget):    # table for all inputs
     class Dropdown(Box, QComboBox):
         def __init__(self, parent, name: str, options: typing.List, init_index=0, option_names=None, var_name=None,
                      print_value=False):
-            Box.__init__(self, parent=parent)
+            Box.__init__(self, parent, parent.current_row+1)
             QComboBox.__init__(self)
 
             self.var_name, self.options, self.option_names = var_name, options, option_names
@@ -609,24 +717,29 @@ class InputWidget(QTableWidget):    # table for all inputs
                     option_names = options
 
             # <editor-fold desc="add_widget and init name&var_name">
-            parent.add_widget()
+            row = parent.add_widget()
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 col = 0
-                parent.setSpan(parent.current_row, 0, 1, 3)
+                parent.setSpan(row, 0, 1, 3)
 
                 if var_name is None:
                     raise ValueError("name can only be empty if var_name is specified")  # #1004
             else:
                 col = 1
-                parent.setSpan(parent.current_row, 1, 1, 2)
+                parent.setSpan(row, 1, 1, 2)
                 self.textbox = QLabel(name)
-                parent.setCellWidget(parent.current_row, 0, self.textbox)
+                parent.setCellWidget(row, 0, self.textbox)
 
                 if var_name is None:
                     var_name = name
 
+            if self.textbox is None:  # can be done above as well but is done here for generality
+                parent.boxes.insert(row, (self, ))
+            else:
+                parent.boxes.insert(row, (self.textbox, self))
+
             parent.input_varnames.append(var_name)
-            parent.setCellWidget(parent.current_row, col, self)
+            parent.setCellWidget(row, col, self)
             # </editor-fold>
             self.current_name = var_name
             self.printing_val = False
@@ -697,6 +810,14 @@ class InputWidget(QTableWidget):    # table for all inputs
             self.change_funcs.append(func)
             self.currentTextChanged.connect(func)
 
+        def unbind(self, func):
+            if func not in self.change_funcs and func != self.on_change:
+                raise ValueError("Function is not bound to this Box.")
+            self.currentTextChanged.disconnect(func)
+            if func != self.on_change:
+                self.change_funcs.remove(func)
+            return self
+
         def on_change(self):
             setattr(self.parent.variables, self.current_name, self.options[self.currentIndex()])
 
@@ -729,42 +850,46 @@ class InputWidget(QTableWidget):    # table for all inputs
             :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
             :return: The rate_slider widget.
             """
-            Box.__init__(self, parent=parent)
-            QSlider.__init__(self)
+            Box.__init__(self, parent, parent.current_row+1)
+            QSlider.__init__(self)              # todo: check if this can be removed
+            self.slider = QSlider(Qt.Orientation.Horizontal, parent)    # done here so it can be added to parent.boxes
 
             (self.var_name, self.change_rate, self.absolute, self.time_var,
              self.custom_func) = var_name, change_rate, absolute, time_var, custom_func
-            self.row = parent.current_row + 1
             # this bit is a bit different for the rate_slider \/\/
             # <editor-fold desc="add_widget and init name&var_name">
-            parent.add_widget()
+            row = parent.add_widget()
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 rate_slider_col = 0
                 self.col = 1
-                parent.setSpan(parent.current_row, 0, 1, 2)
+                parent.setSpan(row, 0, 1, 2)
 
                 if var_name is None:
                     raise ValueError("name can only be empty if var_name is specified")  # #1004
             else:
                 rate_slider_col = 1
                 self.col = 2
-                # parent.setSpan(parent.current_row, 1, 1, 2)
                 self.textbox = QLabel(name)
-                parent.setCellWidget(parent.current_row, 0, self.textbox)
+                parent.setCellWidget(row, 0, self.textbox)
 
                 if var_name is None:
                     var_name = name
 
-            parent.input_varnames.append(var_name)
+            if self.textbox is None:  # can be done above as well but is done here for generality
+                parent.boxes.insert(row, (self.slider, self))
+            else:
+                parent.boxes.insert(row, (self.textbox, self.slider, self))
 
+            parent.input_varnames.append(var_name)
             # </editor-fold>
+            self.row = row
+
             self.current_name = var_name
             self.printing_val = False
 
             setattr(parent.variables, self.current_name, init_value)
 
-            self.slider = QSlider(Qt.Orientation.Horizontal, parent)
-            parent.setCellWidget(parent.current_row, rate_slider_col, self.slider)
+            parent.setCellWidget(self.row, rate_slider_col, self.slider)
             self.slider.setRange(0, 200)
             self.slider.setValue(100)
             self.slider.setStyleSheet("""
@@ -950,6 +1075,14 @@ class InputWidget(QTableWidget):    # table for all inputs
 
             self.change_funcs.append(actual_func)
             self.parent.cellChanged.connect(actual_func)
+            return self
+
+        def unbind(self, func):
+            if func not in self.change_funcs and func != self.on_change:
+                raise ValueError("Function is not bound to this Box.")
+            self.parent.cellChanged.disconnect(func)
+            if func != self.on_change:
+                self.change_funcs.remove(func)
             return self
 
         def on_change(self, row, col):
