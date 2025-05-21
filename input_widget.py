@@ -103,19 +103,14 @@ class InputWidget(QTableWidget):    # table for all inputs
 
     def remove_row(self, remove_row, remove_box):
         if remove_row in self.removed_rows or remove_row > self.current_row:
-            print(self.current_row)
             raise ValueError(f"row {remove_row} is already empty.")
-        print(f"removing row {remove_row}")
         for func in remove_box.change_funcs:
             remove_box.unbind(func)
 
         if not isinstance(remove_box, self.Button):
-            print(f"{remove_box = }")
-            print(f"{remove_box.on_change = }")
             remove_box.unbind(remove_box.on_change)
 
         for col, box in enumerate(self.boxes[remove_row]):
-            print(f"{col, box = }")
             if isinstance(box, self.InputBox) or isinstance(box, self.rate_slider):
                 self.setItem(remove_row, col, QTableWidgetItem(""))
             else:
