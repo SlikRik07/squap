@@ -15,9 +15,9 @@ y_old = None
 class PlotWidget(PlotItem):
     def __init__(self, row, col, **kargs):
         super().__init__(**kargs)
-        self.row = row          # for merging
+        self.row = row          # for merging subplots
         self.col = col
-        self.curves = []        # for clearing
+        self.curves = []        # for clearing curves
 
     def base_plot(self, curve_type, *args, **kwargs):
         if len(args) == 1:
@@ -410,7 +410,6 @@ class PlotCurve(PlotDataItem):
                                 self.gradient.setStart(min(x), min(y))
 
                         cmap = self.gradient.cmap
-
 
                         if isinstance(cmap, str):
                             if cmap in mpl_colormaps:
