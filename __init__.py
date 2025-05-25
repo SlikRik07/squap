@@ -380,6 +380,8 @@ def link_boxes(boxes: typing.List, only_update_boxes=None):
     """
     Links all boxes in the list `boxes`. Boxes added to only_update_boxes are only updated when a box in boxes is
     changed, but do not cause the other boxes to update when they are changed.
+    `link_boxes(box1, box2); link_boxes(box2, box3)` can be used to link box1 to box2 and box2 to box3 without linking
+    box1 to box3.
     """
     window.input_widget.linkboxes(boxes, only_update_boxes)
 
