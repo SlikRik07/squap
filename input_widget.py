@@ -19,21 +19,39 @@ class Box:              # I am not sure if this is required, but I feel like it 
         self.textbox = None  # so that you can check if a textbox exists for this box
 
     def change_params(self, **kwargs):
+        """
+        Change params as given to the __init__ function of this box.
+        """
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
 
-    def bind(self, func):       # For a user to add a function that runs when the value is changed
+    def bind(self, func):
+        """
+        Bind function `func` to this box, meaning that when the value of the box is changed, the function is called.
+        """
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
 
-    def unbind(self, func):       # For a user to unbind a function. Also used to unbind all functions when the Box is removed
+    def unbind(self, func):
+        """
+        Unbind function. # also used when removing a box.
+        """
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
 
     def on_change(self, *args):        # Function that updates the var.var_name value upon value change
+        """
+        Function that updates the var.var_name value upon value change. Not really meant for users.
+        """
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
 
     def print_val(self):
+        """
+        Function that prints the current value of the box. Used for the `print_value` argument in internals.
+        """
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
 
     def remove(self):
+        """
+        Remove this box.
+        """
         # if self.textbox is not None:
         #     self.textbox.destroy()          # not sure if this does anything
         print(f"{self = }")
