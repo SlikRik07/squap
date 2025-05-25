@@ -355,7 +355,7 @@ def add_rate_slider(
     if not window.input_widget:
         window.init_input()
 
-    return window.input_widget.rate_slider(
+    return window.input_widget.RateSlider(
         window.input_widget, window.update_funcs, name, init_value, changerate,
         absolute, time_var, custom_func, var_name, print_value
     )

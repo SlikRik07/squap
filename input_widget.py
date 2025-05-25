@@ -932,7 +932,7 @@ class InputWidget(QTableWidget):    # table for all inputs
         def print_val(self):
             print(f"{self.current_name} = {self.options[self.currentIndex()]}")
 
-    class rate_slider(Box, QSlider):
+    class RateSlider(Box, QSlider):
         def __init__(self, parent, update_funcs, name: str, init_value: float, change_rate=10.0, absolute=False,
                      time_var=None, custom_func=None, var_name=None, print_value=False):
             """
