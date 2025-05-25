@@ -211,7 +211,6 @@ class InputWidget(QTableWidget):    # table for all inputs
             # box1 and box3
             box_.bind(func)
 
-
     class Slider(Box, QSlider):
         def __init__(self, parent, name: str, init_value: float, min_value: float, max_value: float, n_ticks=51,
                      tick_interval=None, only_ints=False, logscale=False, var_name=None, print_value=False,
@@ -932,7 +931,7 @@ class InputWidget(QTableWidget):    # table for all inputs
         def print_val(self):
             print(f"{self.current_name} = {self.options[self.currentIndex()]}")
 
-    class rate_slider(Box, QSlider):
+    class RateSlider(Box, QSlider):
         def __init__(self, parent, update_funcs, name: str, init_value: float, change_rate=10.0, absolute=False,
                      time_var=None, custom_func=None, var_name=None, print_value=False):
             """
