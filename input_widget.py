@@ -163,32 +163,6 @@ class InputWidget(QTableWidget):    # table for all inputs
             self.removed_rows.append(remove_row)
             self.boxes[remove_row] = ()
 
-    def link_cells(self, row1, row2):
-        rows = [row1, row2]
-        cols = []
-        for row in rows:
-            for col in (1, 2):
-                if self.item(row, col) is not None:
-                    cols.append(col)
-                    break
-            else:
-                print(f"row number {row} doesn't contain any cells that can be linked")
-                exit(1005)
-        skip_cell = {rows[0]: False, rows[1]: False}        # prevents recursion when a cell is changed
-
-        def on_change(row_arg, col_arg):
-            for i in range(len(rows)):
-                if row_arg == rows[i] and col_arg == cols[i]:
-                    j = -i + 1              # turns 1 into 0 and other way around
-                    # this bit prevents recursion by skipping next time the other is called. This doesn't feel to sturdy
-                    if not skip_cell[rows[i]]:     # so might crash later, not sure though.
-                        skip_cell[rows[j]] = True
-                        self.setItem(rows[j], cols[j], QTableWidgetItem(self.item(rows[i], cols[i]).text()))
-                    else:
-                        skip_cell[rows[i]] = False
-
-        self.cellChanged.connect(on_change)
-
     def link_boxes(self, boxes, only_update_boxes=None):
         """
         box1, box2 are either both boxes or both rows, which can be linked. The boxes that can be linked are:
