@@ -220,7 +220,7 @@ def on_mouse_click(func):
 
 
 def add_slider(
-        name: str, init_value=1.0, min_value=0.0, max_value=10.0, n_ticks=50, tick_interval=None, only_ints=False,
+        name: str, init_value=1.0, min_value=0.0, max_value=10.0, n_ticks=51, tick_interval=None, only_ints=False,
         logscale=False, var_name=None, print_value=False
 ):
     """
@@ -230,7 +230,7 @@ def add_slider(
     :param init_value: The initial value of the slider.
     :param min_value: The minimum value of the slider.
     :param max_value: The maximum value of the slider.
-    :param n_ticks: The number of ticks on the slider. Either provide n_ticks or tick_interval. Defaults to 50.
+    :param n_ticks: The number of ticks on the slider. Either provide n_ticks or tick_interval. Defaults to 51.
     :param tick_interval: The interval between ticks. If provided, overwrites n_ticks.
     :param only_ints: Whether to use whole numbers as ticks. If set to True, `tick_interval` is used as spacing
         between the ticks. If `tick_interval` is not specified, it defaults to 1. Converts `tick_interval` to

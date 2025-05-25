@@ -42,6 +42,20 @@ class Box:              # I am not sure if this is required, but I feel like it 
         """
         raise NotImplementedError("Subclasses should implement this! Users should not see this.")
 
+    def value(self):
+        """
+        Returns the current value of var.var_name
+        """
+        raise NotImplementedError("Subclasses should implement this! Users should not see this.")
+
+    def set_value(self, value):
+        """
+        Sets the value of the box and `var.var_name` to `value`. Note that for a slider, the new slider position will be
+        the closest possible position to `value`, and the new value of `var.var_name` will be the value corresponding to
+        the new slider position.
+        """
+        raise NotImplementedError("Subclasses should implement this! Users should not see this.")
+
     def print_val(self):
         """
         Function that prints the current value of the box. Used for the `print_value` argument in internals.
@@ -56,9 +70,6 @@ class Box:              # I am not sure if this is required, but I feel like it 
         #     self.textbox.destroy()          # not sure if this does anything
         print(f"{self = }")
         self.parent.remove_row(self.row, self)
-
-    def test(self):
-        print(f"{self = }")
 
 
 class InputWidget(QTableWidget):    # table for all inputs
@@ -89,6 +100,8 @@ class InputWidget(QTableWidget):    # table for all inputs
         self.boxes = []             # for removing them later (and a nice overview)
         self.removed_rows = []      # these are the rows that have been removed out of order, so that these are filled
                                     # up first
+        self.n_links = 0            # number of links between boxes
+
     def resizeEvent(self, event) -> None:       # event is not used since every necessary parameter is in self
         width = self.width()
         height = self.height()
@@ -121,19 +134,14 @@ class InputWidget(QTableWidget):    # table for all inputs
 
     def remove_row(self, remove_row, remove_box):
         if remove_row in self.removed_rows or remove_row > self.current_row:
-            print(self.current_row)
             raise ValueError(f"row {remove_row} is already empty.")
-        print(f"removing row {remove_row}")
         for func in remove_box.change_funcs:
             remove_box.unbind(func)
 
         if not isinstance(remove_box, self.Button):
-            print(f"{remove_box = }")
-            print(f"{remove_box.on_change = }")
             remove_box.unbind(remove_box.on_change)
 
         for col, box in enumerate(self.boxes[remove_row]):
-            print(f"{col, box = }")
             if isinstance(box, self.InputBox) or isinstance(box, self.rate_slider):
                 self.setItem(remove_row, col, QTableWidgetItem(""))
             else:
@@ -181,8 +189,31 @@ class InputWidget(QTableWidget):    # table for all inputs
 
         self.cellChanged.connect(on_change)
 
+    def link_boxes(self, boxes):
+        """
+        box1, box2 are either both boxes or both rows, which can be linked. The boxes that can be linked are:
+        rate_slider, slider or inputbox. Linking means that when one value changes, the other changes too.
+        """
+        self.n_links += 1
+
+        for i, box_ in enumerate(boxes):
+            def func(*args, box=box_, n_links=self.n_links):
+                val = box.value()
+                for other_box in boxes:
+                    if other_box != box and n_links in other_box.link_funcs.keys():
+                        for link_fuc in other_box.link_funcs.values():
+                            other_box.unbind(link_fuc)
+                        other_box.set_value(val)
+                        for link_fuc in other_box.link_funcs.values():
+                            other_box.bind(link_fuc)
+
+            box_.link_funcs[self.n_links] = func     # enables linking box1 and box2 and box2 and box3 without linking
+            # box1 and box3
+            box_.bind(func)
+
+
     class Slider(Box, QSlider):
-        def __init__(self, parent, name: str, init_value: float, min_value: float, max_value: float, n_ticks=50,
+        def __init__(self, parent, name: str, init_value: float, min_value: float, max_value: float, n_ticks=51,
                      tick_interval=None, only_ints=False, logscale=False, var_name=None, print_value=False,
                      custom_arr=None):
             """
@@ -192,7 +223,7 @@ class InputWidget(QTableWidget):    # table for all inputs
             :param init_value: The initial value of the slider.
             :param min_value: The minimum value of the slider.
             :param max_value: The maximum value of the slider.
-            :param n_ticks: The number of ticks on the slider. Defaults to 50.
+            :param n_ticks: The number of ticks on the slider. Defaults to 51.
             :param tick_interval: The interval between ticks. If provided, overwrites `n_ticks`.
             :param only_ints: Whether to use whole numbers as ticks. If set to True, `tick_interval` is used as spacing
                 between the ticks and `n_ticks` is ignored. If `tick_interval` is not specified, it defaults to 1.
@@ -212,6 +243,7 @@ class InputWidget(QTableWidget):    # table for all inputs
             """
             Box.__init__(self, parent, parent.current_row+1)
             QSlider.__init__(self, parent=parent, orientation=Qt.Orientation.Horizontal)
+            self.link_funcs = {}            # for linking this box to others
 
             (self.min_value, self.max_value, self.var_name, self.only_ints, self.logscale, self.custom_arr,
              self.n_ticks, self.tick_interval) = (min_value, max_value, var_name, only_ints, logscale, custom_arr,
@@ -290,8 +322,9 @@ class InputWidget(QTableWidget):    # table for all inputs
             else:
                 slider_val = np.argmin(np.abs(np.array(self.arr) - init_value))
 
-            setattr(parent.variables, self.current_name, self.arr[slider_val])
             self.setValue(slider_val)
+            setattr(self.parent.variables, self.current_name, init_value)       # makes sure the variable starts at
+            # init_value, not the slider approximated value of init_value
             self.valueChanged.connect(self.on_change)
 
             if print_value:
@@ -412,8 +445,24 @@ class InputWidget(QTableWidget):    # table for all inputs
         def on_change(self, val):
             setattr(self.parent.variables, self.current_name, self.arr[val])
 
+        def set_value(self, value):
+            if self.logscale:
+                slider_val = np.argmin(np.abs(np.log10(np.array(self.arr)) - np.log10(value)))
+            else:
+                slider_val = np.argmin(np.abs(np.array(self.arr) - value))
+            setattr(self.parent.variables, self.current_name, value)
+            self.valueChanged.disconnect(self.on_change)
+            self.setValue(slider_val)
+            self.valueChanged.connect(self.on_change)
+
+        def value(self):
+            return getattr(self.parent.variables, self.current_name)
+
+        def set_index(self, index):
+            self.setValue(index)
+
         def print_val(self):
-            print(f"{self.current_name} = {self.arr[self.value()]}")
+            print(f"{self.current_name} = {self.value()}")
 
     class Checkbox(Box, QCheckBox):
         def __init__(self, parent, name: str, init_value: bool, var_name=None, print_value=False):
@@ -523,6 +572,12 @@ class InputWidget(QTableWidget):    # table for all inputs
         def on_change(self):
             setattr(self.parent.variables, self.current_name, self.val())
 
+        def value(self):
+            return getattr(self.parent.variables, self.current_name)
+
+        def set_value(self, value: bool):
+            self.setChecked(value)
+
         def print_val(self):
             print(f"{self.current_name} = {self.val()}")
 
@@ -557,6 +612,8 @@ class InputWidget(QTableWidget):    # table for all inputs
             """
             Box.__init__(self, parent, parent.current_row+1)
             self.var_name = var_name
+            self.actual_change_funcs = []       # for being able to unbind functions
+            self.link_funcs = {}                # for linking this box to others
 
             # <editor-fold desc="add_widget and init name&var_name">
             row = parent.add_widget()
@@ -653,22 +710,37 @@ class InputWidget(QTableWidget):    # table for all inputs
                 if row == self.row:
                     func()
 
-            self.change_funcs.append(actual_func)
+            self.actual_change_funcs.append(actual_func)
+            self.change_funcs.append(func)
             self.parent.cellChanged.connect(actual_func)
             return self
 
         def unbind(self, func):
             if func not in self.change_funcs and func != self.on_change:
                 raise ValueError("Function is not bound to this Box.")
-            self.parent.cellChanged.disconnect(func)
+
             if func != self.on_change:
+                actual_func = self.actual_change_funcs[self.change_funcs.index(func)]
+                self.parent.cellChanged.disconnect(actual_func)
                 self.change_funcs.remove(func)
+                self.actual_change_funcs.remove(actual_func)
+            else:
+                self.parent.cellChanged.disconnect(self.on_change)
+
             return self
 
         def on_change(self, row):
             if row == self.row:
-                print(self.row, self.col)
                 setattr(self.parent.variables, self.current_name, self.type_func(self.parent.item(self.row, self.col).text()))
+
+        def value(self):
+            return getattr(self.parent.variables, self.current_name)
+
+        def set_value(self, value):
+            if isinstance(value, str):
+                self.parent.setItem(self.row, self.col, QTableWidgetItem('"' + value + '"'))
+            else:
+                self.parent.setItem(self.row, self.col, QTableWidgetItem(str(value)))
 
         def print_val(self):
             print(f"{self.current_name} = {self.val()}")
@@ -713,6 +785,9 @@ class InputWidget(QTableWidget):    # table for all inputs
             return self
 
         def on_change(self):
+            raise ValueError("This function is not defined for a Button")
+
+        def set_value(self, value):
             raise ValueError("This function is not defined for a Button")
 
         def print_val(self):
@@ -838,6 +913,22 @@ class InputWidget(QTableWidget):    # table for all inputs
         def on_change(self):
             setattr(self.parent.variables, self.current_name, self.options[self.currentIndex()])
 
+        def value(self):
+            return getattr(self.parent.variables, self.current_name)
+
+        def set_value(self, value):
+            if self.option_names is None:        # for change_params we need the original value, for this function not.
+                for option in self.options:
+                    if not isinstance(option, str):
+                        option_names = [str(option) for option in self.options]
+                        break
+                else:
+                    option_names = self.options
+            self.setCurrentIndex(option_names.index(value))
+
+        def set_index(self, index):
+            self.setCurrentIndex(index)
+
         def print_val(self):
             print(f"{self.current_name} = {self.options[self.currentIndex()]}")
 
@@ -870,6 +961,8 @@ class InputWidget(QTableWidget):    # table for all inputs
             Box.__init__(self, parent, parent.current_row+1)
             QSlider.__init__(self)
             self.slider = QSlider(Qt.Orientation.Horizontal, parent)    # done here so it can be added to parent.boxes
+            self.actual_change_funcs = []       # for being able to unbind functions
+            self.link_funcs = {}                # for linking this box to others
 
             (self.var_name, self.change_rate, self.absolute, self.time_var,
              self.custom_func) = var_name, change_rate, absolute, time_var, custom_func
@@ -1090,21 +1183,35 @@ class InputWidget(QTableWidget):    # table for all inputs
                 if row == self.row and col == self.col:
                     func()
 
-            self.change_funcs.append(actual_func)
+            self.actual_change_funcs.append(actual_func)
+            self.change_funcs.append(func)
             self.parent.cellChanged.connect(actual_func)
             return self
 
         def unbind(self, func):
             if func not in self.change_funcs and func != self.on_change:
                 raise ValueError("Function is not bound to this Box.")
-            self.parent.cellChanged.disconnect(func)
             if func != self.on_change:
+                actual_func = self.actual_change_funcs[self.change_funcs.index(func)]
+                self.parent.cellChanged.disconnect(actual_func)
                 self.change_funcs.remove(func)
+                self.actual_change_funcs.remove(actual_func)
+            else:
+                self.parent.cellChanged.disconnect(func)
             return self
 
         def on_change(self, row, col):
             if row == self.row and col == self.col:
                 setattr(self.parent.variables, self.current_name, float(self.parent.item(self.row, self.col).text()))
+
+        def value(self):
+            return getattr(self.parent.variables, self.current_name)
+
+        def set_value(self, value):
+            setattr(self.parent.variables, self.current_name, value)
+            self.parent.cellChanged.disconnect(self.on_change)
+            self.parent.setItem(self.row, self.col, QTableWidgetItem(str(textify(value))))
+            self.parent.cellChanged.connect(self.on_change)
 
         def print_val(self):
             print(f"{self.current_name} = {self.val()}")
