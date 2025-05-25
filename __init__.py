@@ -1,5 +1,6 @@
 # starts off by creating an instance of main_window, containing a plot widget.
 import time
+import typing
 
 from .main_window import MainWindow
 from .plot_widget import PlotWidget
@@ -368,8 +369,19 @@ def get_boxes():
     return [box_row[-1] for box_row in window.input_widget.boxes]
 
 
-def get_current_row():  # returns row of latest placed widget
+def get_current_row():
+    """
+    returns row of latest placed widget
+    """
     return window.input_widget.current_row
+
+
+def link_boxes(boxes: typing.List, only_update_boxes=None):
+    """
+    Links all boxes in the list `boxes`. Boxes added to only_update_boxes are only updated when a box in boxes is
+    changed, but do not cause the other boxes to update when they are changed.
+    """
+    window.input_widget.linkboxes(boxes, only_update_boxes)
 
 
 def display_fps(update_speed=0.2, get_fps=False, optimised=False, plot_window=None):

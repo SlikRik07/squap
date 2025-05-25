@@ -189,23 +189,30 @@ class InputWidget(QTableWidget):    # table for all inputs
 
         self.cellChanged.connect(on_change)
 
-    def link_boxes(self, boxes):
+    def link_boxes(self, boxes, only_update_boxes=None):
         """
         box1, box2 are either both boxes or both rows, which can be linked. The boxes that can be linked are:
         rate_slider, slider or inputbox. Linking means that when one value changes, the other changes too.
         """
         self.n_links += 1
+        if only_update_boxes is None:
+            only_update_boxes = []
 
         for i, box_ in enumerate(boxes):
-            def func(*args, box=box_, n_links=self.n_links):
-                val = box.value()
-                for other_box in boxes:
-                    if other_box != box and n_links in other_box.link_funcs.keys():
-                        for link_fuc in other_box.link_funcs.values():
-                            other_box.unbind(link_fuc)
-                        other_box.set_value(val)
-                        for link_fuc in other_box.link_funcs.values():
-                            other_box.bind(link_fuc)
+            if box_ in only_update_boxes:
+                def func():
+                    return
+
+            else:
+                def func(*args, box=box_, n_links=self.n_links):
+                    val = box.value()
+                    for other_box in boxes:
+                        if other_box != box and n_links in other_box.link_funcs.keys():
+                            for link_fuc in other_box.link_funcs.values():
+                                other_box.unbind(link_fuc)
+                            other_box.set_value(val)
+                            for link_fuc in other_box.link_funcs.values():
+                                other_box.bind(link_fuc)
 
             box_.link_funcs[self.n_links] = func     # enables linking box1 and box2 and box2 and box3 without linking
             # box1 and box3
