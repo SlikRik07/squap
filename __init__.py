@@ -1,5 +1,6 @@
 # starts off by creating an instance of main_window, containing a plot widget.
 import time
+import typing
 
 from .main_window import MainWindow
 from .plot_widget import PlotWidget
@@ -18,7 +19,7 @@ from PySide6.QtCore import QPointF
 __all__ = [
     "var", "plot", "scatter", "set_xlim", "set_ylim", "legend", "set_title", "lock_zoom", "subplots", "get_gradient",
     "merge", "set_interval", "on_refresh", "on_mouse_click", "add_slider", "add_checkbox", "add_inputbox", "add_button",
-    "add_dropdown", "add_rate_slider", "get_boxes", "add_text", "display_fps", "resize", "set_input_partition", "is_alive", "refresh",
+    "add_dropdown", "add_rate_slider", "add_input_table", "get_boxes", "add_text", "display_fps", "resize", "set_input_partition", "is_alive", "refresh",
     "show_window", "show", "export", "export_video"
 ]
 
@@ -220,7 +221,7 @@ def on_mouse_click(func):
 
 
 def add_slider(
-        name: str, init_value=1.0, min_value=0.0, max_value=10.0, n_ticks=50, tick_interval=None, only_ints=False,
+        name: str, init_value=1.0, min_value=0.0, max_value=10.0, n_ticks=51, tick_interval=None, only_ints=False,
         logscale=False, var_name=None, print_value=False
 ):
     """
@@ -230,7 +231,7 @@ def add_slider(
     :param init_value: The initial value of the slider.
     :param min_value: The minimum value of the slider.
     :param max_value: The maximum value of the slider.
-    :param n_ticks: The number of ticks on the slider. Either provide n_ticks or tick_interval. Defaults to 50.
+    :param n_ticks: The number of ticks on the slider. Either provide n_ticks or tick_interval. Defaults to 51.
     :param tick_interval: The interval between ticks. If provided, overwrites n_ticks.
     :param only_ints: Whether to use whole numbers as ticks. If set to True, `tick_interval` is used as spacing
         between the ticks. If `tick_interval` is not specified, it defaults to 1. Converts `tick_interval` to
@@ -247,10 +248,10 @@ def add_slider(
     :return: The slider widget.
     """
 
-    if not window.input_widget:
-        window.init_input()
-    return window.input_widget.Slider(
-        window.input_widget, name, init_value, min_value, max_value, n_ticks, tick_interval, only_ints, logscale,
+    if not window.first_input_table:
+        window.init_first_tab()
+    return window.first_input_table.Slider(
+        window.first_input_table, name, init_value, min_value, max_value, n_ticks, tick_interval, only_ints, logscale,
         var_name, print_value
     )
 
@@ -266,9 +267,9 @@ def add_checkbox(name: str, init_value=False, var_name=None, print_value=False):
     :return: The checkbox widget.
     """
 
-    if not window.input_widget:
-        window.init_input()
-    return window.input_widget.Checkbox(window.input_widget, name, init_value, var_name, print_value)
+    if not window.first_input_table:
+        window.init_first_tab()
+    return window.first_input_table.Checkbox(window.first_input_table, name, init_value, var_name, print_value)
 
 
 def add_inputbox(name: str, init_value=1.0, type_func=None, var_name=None, print_value=False):
@@ -285,9 +286,9 @@ def add_inputbox(name: str, init_value=1.0, type_func=None, var_name=None, print
     :return: The inputbox widget.
     """
 
-    if not window.input_widget:
-        window.init_input()
-    return window.input_widget.InputBox(window.input_widget, name, init_value, type_func, var_name, print_value)
+    if not window.first_input_table:
+        window.init_first_tab()
+    return window.first_input_table.InputBox(window.first_input_table, name, init_value, type_func, var_name, print_value)
     # current_row + 1 because this parameter is updated inside the function
 
 
@@ -299,9 +300,9 @@ def add_button(name: str, func=None):
     :param func: The function which is run on button press
     :return: The button widget.
     """
-    if not window.input_widget:
-        window.init_input()
-    return window.input_widget.Button(window.input_widget, name, func)
+    if not window.first_input_table:
+        window.init_first_tab()
+    return window.first_input_table.Button(window.first_input_table, name, func)
 
 
 def add_dropdown(
@@ -321,14 +322,14 @@ def add_dropdown(
     :return: The dropdown widget.
     """
 
-    if not window.input_widget:
-        window.init_input()
-    return window.input_widget.Dropdown(window.input_widget, name, options, init_index, option_names, var_name,
+    if not window.first_input_table:
+        window.init_first_tab()
+    return window.first_input_table.Dropdown(window.first_input_table, name, options, init_index, option_names, var_name,
                                         print_value)
 
 
 def add_rate_slider(
-        name: str, init_value=1.0, changerate=10.0, absolute=False, time_var=None,
+        name: str, init_value=1.0, change_rate=10.0, absolute=False, time_var=None,
         custom_func=None, var_name=None, print_value=False
 ):
     """
@@ -336,7 +337,7 @@ def add_rate_slider(
 
     :param name: The name in front of the rate_slider.
     :param init_value: The initial value of the rate_slider.
-    :param changerate: Change to the value of the variable per second (how it changes depends on `absolute`),
+    :param change_rate: Change to the value of the variable per second (how it changes depends on `absolute`),
         multiplied by the current rate_slider position (value between -1 and 1).
     :param absolute: How the value of the variable is changed. If absolute is True, changerate will be added
         every second. If it is set to False, the variable will be multiplied be changerate every second.
@@ -351,25 +352,55 @@ def add_rate_slider(
     :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
     :return: The rate_slider widget.
     """
+    if not window.first_input_table:
+        window.init_first_tab()
 
-    if not window.input_widget:
-        window.init_input()
-
-    return window.input_widget.rate_slider(
-        window.input_widget, window.update_funcs, name, init_value, changerate,
+    return window.first_input_table.RateSlider(
+        window.first_input_table, window.update_funcs, name, init_value, changerate,
         absolute, time_var, custom_func, var_name, print_value
     )
+
+
+def add_input_table(name=None):
+    """
+    Returns a newly created input table on the left. If one already exists, it is added as a tab to a QTabWidget.
+
+    :param name: Name of the tab, only visible when multiple input tables are added. Defaults to tab{i} where i is the
+        ith tab.
+    :type name: str
+    """
+    if not window.first_input_table:
+        return window.init_first_tab(name=name)
+    else:
+        return window.add_table(name=name)
 
 
 def get_boxes():
     """
     Returns a list containing all boxes that exist at this point.
     """
-    return [box_row[-1] for box_row in window.input_widget.boxes]
+    return [box_row[-1] for box_row in window.first_input_table.boxes]
 
 
-def get_current_row():  # returns row of latest placed widget
-    return window.input_widget.current_row
+def get_current_row():
+    """
+    returns row of latest placed widget
+    """
+    return window.first_input_table.current_row
+
+
+def link_boxes(boxes: typing.List, only_update_boxes=None):
+    """
+    Links all boxes in the list `boxes`. Boxes added to only_update_boxes are only updated when a box in boxes is
+    changed, but do not cause the other boxes to update when they are changed.
+    `link_boxes(box1, box2); link_boxes(box2, box3)` can be used to link box1 to box2 and box2 to box3 without linking
+    box1 to box3.
+    """
+    window.first_input_table.link_boxes(boxes, only_update_boxes)
+
+
+def new_input_widget_tab(name="tab2"):
+    pass
 
 
 def display_fps(update_speed=0.2, get_fps=False, optimised=False, plot_window=None):
@@ -616,19 +647,19 @@ def resize(width, height):
     # if window.input_widget is None and not window.isVisible():
     #     window.fig_widget.resize(width, height)
 
-    if window.input_widget:
+    if window.main_input_widget:
         ratio = window.splitter.widthratio
-        window.input_widget.resize(int(ratio * width / (ratio + 1)), height)
+        window.main_input_widget.resize(int(ratio * width / (ratio + 1)), height)
         window.fig_widget.resize(int(width / (ratio + 1)), height)
         window.splitter.resize(width, height)
-        window.input_widget.resized = True
+        window.main_input_widget.resized = True
 
 
 def size():
     return window.size()
 
 
-def set_input_partition(fraction=1/3):
+def set_input_partition(fraction=1/3):          # todo: move to input_widget
     """
     Sets the position of the partition between the 2 columns of the input_widget.
 
@@ -636,10 +667,10 @@ def set_input_partition(fraction=1/3):
         as 1/3
     :type fraction: float
     """
-    if not window.input_widget:
-        window.init_input()
-    window.input_widget.col_partition = fraction
-    window.input_widget.resizeEvent(None)
+    if not window.first_input_table:
+        window.init_first_tab()
+    window.first_input_table.col_partition = fraction
+    window.first_input_table.resizeEvent(None)
 
 
 def is_alive():
@@ -673,11 +704,11 @@ def show_window():
     """
     window.refresh_timer = current_time()
 
-    if window.input_widget:
-        if not window.input_widget.resized:
-            window.resize(window.size().width() + window.input_widget.width() + 4, window.height())
+    if window.main_input_widget:
+        if not window.main_input_widget.resized:
+            window.resize(window.size().width() + window.main_input_widget.width() + 4, window.height())
         # +4 extra for space between plot_widget and input_widget
-        window.splitter.setSizes([window.input_widget.width(), window.fig_widget.width()])
+        window.splitter.setSizes([window.main_input_widget.width(), window.fig_widget.width()])
 
     window.show()
 
@@ -711,11 +742,11 @@ def show():
     else:
         timer.start()
 
-    if window.input_widget:
-        if not window.input_widget.resized:
-            window.resize(window.size().width() + window.input_widget.width() + 4, window.height())
+    if window.main_input_widget:
+        if not window.main_input_widget.resized:
+            window.resize(window.size().width() + window.input_width + 4, window.height())
         # +4 extra for space between plot_widget and input_widget
-        window.splitter.setSizes([window.input_widget.width(), window.fig_widget.width()])
+        window.splitter.setSizes([window.input_width, window.fig_widget.width()])
 
         # pos = window.pos().toTuple()          # don't know why but this is suddenly not necessary anymore
         # window.move(pos[0]-0.5*(window.input_widget.width() + 4), pos[1])
