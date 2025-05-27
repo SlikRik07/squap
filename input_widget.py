@@ -388,6 +388,8 @@ class InputTable(QTableWidget):    # table for all inputs
                 else:
                     n_ticks = round(np.emath.logn(tick_interval, max_value/min_value))
                     self.arr = np.logspace(np.log10(min_value), np.log10(max_value), n_ticks)
+                if only_ints:
+                    self.arr = np.round(self.arr).astype(int)
             elif only_ints:
                 if tick_interval is None:
                     tick_interval = 1
