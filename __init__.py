@@ -363,7 +363,9 @@ def add_rate_slider(
 
 def add_input_table(name=None):
     """
-    Returns a newly created input table on the left. If one already exists, it is added as a tab to a QTabWidget.
+    Returns a newly created input table on the left. If one already exists, it is added as a tab to a QTabWidget. Note
+    that an input table is automatically created when another function is called that implies the existence of an
+    input table, so call this function before that to name the first input table.
 
     :param name: Name of the tab, only visible when multiple input tables are added. Defaults to tab{i} where i is the
         ith tab.
@@ -648,7 +650,7 @@ def resize(width, height):
     #     window.fig_widget.resize(width, height)
 
     if window.main_input_widget:
-        ratio = window.splitter.widthratio
+        ratio = window.splitter.width_ratio
         window.main_input_widget.resize(int(ratio * width / (ratio + 1)), height)
         window.fig_widget.resize(int(width / (ratio + 1)), height)
         window.splitter.resize(width, height)
@@ -674,6 +676,21 @@ def set_input_partition(fraction=1/3):
     if not window.first_input_table:
         window.init_first_tab()
     window.first_input_table.set_partition(fraction)
+
+
+def set_input_width_ratio(fraction=1/2):
+    """
+    Sets the relative size of the input window compared to the plot window. A fraction of 1/2 (default value) means that
+    the plot window is 2 times wider than the input window.
+    """
+    if not window.first_input_table:
+        window.init_first_tab(width_ratio=fraction)
+    else:
+        width, height = window.size().toTuple()
+        window.splitter.width_ratio = fraction
+        window.main_input_widget.resize(int(fraction * width / (fraction + 1)), height)
+        window.fig_widget.resize(int(width / (fraction + 1)), height)
+        window.splitter.resize(width, height)
 
 
 def is_alive():
@@ -708,10 +725,19 @@ def show_window():
     window.refresh_timer = current_time()
 
     if window.main_input_widget:
-        if not window.main_input_widget.resized:
-            window.resize(window.size().width() + window.main_input_widget.width() + 4, window.height())
-        # +4 extra for space between plot_widget and input_widget
-        window.splitter.setSizes([window.main_input_widget.width(), window.fig_widget.width()])
+        if window.resized:
+            if not window.main_input_widget.resized:
+                x = window.splitter.width_ratio              # calculates width of the input_widget given x and total w
+                fig_width = window.size().width()/(1+x)
+                window.input_width = fig_width*x
+            else:
+                fig_width = window.width()-window.input_width-4
+            window.splitter.setSizes([window.input_width, fig_width])
+        else:
+            if not window.main_input_widget.resized:
+                window.resize(window.size().width() + window.input_width + 4, window.height())
+            # +4 extra for space between plot_widget and input_widget
+            window.splitter.setSizes([window.input_width, window.fig_widget.width()])
 
     window.show()
 
@@ -748,7 +774,7 @@ def show():
     if window.main_input_widget:
         if window.resized:
             if not window.main_input_widget.resized:
-                x = window.splitter.widthratio              # calculates width of the input_widget given x and total w
+                x = window.splitter.width_ratio              # calculates width of the input_widget given x and total w
                 fig_width = window.size().width()/(1+x)
                 window.input_width = fig_width*x
             else:

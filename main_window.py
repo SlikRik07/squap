@@ -121,7 +121,7 @@ class MainWindow(QMainWindow):
             raise RuntimeError("Can not create a first table when one already exists, use `add_tab()` instead.")
 
         self.splitter = QSplitter()
-        self.splitter.widthratio = width_ratio
+        self.splitter.width_ratio = width_ratio
         self.input_width = int(self.size().width()*width_ratio)
         input_table = self.new_table(name)
         self.first_input_table = input_table        # with one table, the first table is both the first table and the
@@ -153,7 +153,7 @@ class MainWindow(QMainWindow):
             # print(self.size())
             width, height = self.size().toTuple()
             # copied from resize in __init__.py (when input_widget has been resized, the new QTabWidget is also resized)
-            ratio = self.splitter.widthratio
+            ratio = self.splitter.width_ratio
             self.tab_widget.resize(int(ratio * width / (ratio + 1)), height)
             self.fig_widget.resize(int(width / (ratio + 1)), height)
             self.splitter.resize(width, height)
