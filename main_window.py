@@ -38,11 +38,12 @@ class MainWindow(QMainWindow):
         self.heightratios = None
 
         self.extra_width = 0
-        self.input_width = 0                    # width of the input_table
+        self.input_width = 0                # width of the input_table
+        self.resized = False                # if it has been resized already, the input_widget mustn't make it bigger
         self.input_tables = {}
-        self.main_input_widget = None           # the input_widget, or the QTabWidget if multiple tabs are added
-        self.first_input_table = None           # the input_table that was added first
-        self.splitter = None                    # stuff that can be initialised later is set to None
+        self.main_input_widget = None       # the input_widget, or the QTabWidget if multiple tabs are added
+        self.first_input_table = None       # the input_table that was added first
+        self.splitter = None                # stuff that can be initialised later is set to None
         self.tab_widget = None
         self.table_container = None
         self.exit_when_closed = False
@@ -149,7 +150,8 @@ class MainWindow(QMainWindow):
     def init_tab_widget(self):
         self.tab_widget = QTabWidget()
         if self.main_input_widget.resized:
-            width, height = self.size()
+            # print(self.size())
+            width, height = self.size().toTuple()
             # copied from resize in __init__.py (when input_widget has been resized, the new QTabWidget is also resized)
             ratio = self.splitter.widthratio
             self.tab_widget.resize(int(ratio * width / (ratio + 1)), height)

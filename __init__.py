@@ -12,7 +12,7 @@ import cv2  # doesn't work with numpy2 yet
 from argparse import Namespace
 
 from pyqtgraph.Qt import QtCore, QtGui
-from pyqtgraph import mkQApp, TextItem
+from pyqtgraph import mkQApp
 from PySide6.QtGui import QLinearGradient, QRadialGradient, QConicalGradient, QGradient
 from PySide6.QtCore import QPointF
 
@@ -356,7 +356,7 @@ def add_rate_slider(
         window.init_first_tab()
 
     return window.first_input_table.RateSlider(
-        window.first_input_table, window.update_funcs, name, init_value, changerate,
+        window.first_input_table, name, init_value, change_rate,
         absolute, time_var, custom_func, var_name, print_value
     )
 
@@ -643,6 +643,7 @@ def resize(width, height):
     :type height: int
     """
     window.resize(width, height)
+    window.resized = True
     # if window.input_widget is None and not window.isVisible():
     #     window.fig_widget.resize(width, height)
 
@@ -652,9 +653,13 @@ def resize(width, height):
         window.fig_widget.resize(int(width / (ratio + 1)), height)
         window.splitter.resize(width, height)
         window.main_input_widget.resized = True
+        print(width, height)
 
 
 def size():
+    """
+    Returns the size of the window. Can be unreliable when called before the window is shown.
+    """
     return window.size()
 
 
@@ -741,10 +746,19 @@ def show():
         timer.start()
 
     if window.main_input_widget:
-        if not window.main_input_widget.resized:
-            window.resize(window.size().width() + window.input_width + 4, window.height())
-        # +4 extra for space between plot_widget and input_widget
-        window.splitter.setSizes([window.input_width, window.fig_widget.width()])
+        if window.resized:
+            if not window.main_input_widget.resized:
+                x = window.splitter.widthratio              # calculates width of the input_widget given x and total w
+                fig_width = window.size().width()/(1+x)
+                window.input_width = fig_width*x
+            else:
+                fig_width = window.width()-window.input_width-4
+            window.splitter.setSizes([window.input_width, fig_width])
+        else:
+            if not window.main_input_widget.resized:
+                window.resize(window.size().width() + window.input_width + 4, window.height())
+            # +4 extra for space between plot_widget and input_widget
+            window.splitter.setSizes([window.input_width, window.fig_widget.width()])
 
         # pos = window.pos().toTuple()          # don't know why but this is suddenly not necessary anymore
         # window.move(pos[0]-0.5*(window.input_widget.width() + 4), pos[1])
