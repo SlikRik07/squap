@@ -105,7 +105,6 @@ class InputTable(QTableWidget):    # table for all inputs
         self.boxes = []             # for removing them later (and a nice overview)
         self.removed_rows = []      # these are the rows that have been removed out of order, so that these are filled
                                     # up first
-        self.n_links = 0            # number of links between boxes
 
     def resizeEvent(self, *args) -> None:       # event is not used since every necessary parameter is in self
         width = self.width()
@@ -122,7 +121,7 @@ class InputTable(QTableWidget):    # table for all inputs
         self.setColumnWidth(1, int(self.rate_slider_space))
         self.setColumnWidth(2, int(width * (1-self.col_partition))-self.rate_slider_space)
 
-    def set_input_partition(self, fraction=1/3):
+    def set_partition(self, fraction=1/3):
         """
         Sets the position of the partition between the 2 columns of the input_widget.
 
@@ -131,7 +130,13 @@ class InputTable(QTableWidget):    # table for all inputs
         :type fraction: float
         """
         self.col_partition = fraction
-        self.resizeEvent(None)
+        self.resizeEvent()
+
+    def get_boxes(self):
+        """
+        Returns a list containing all boxes that exist at this point.
+        """
+        return [box_row[-1] for box_row in self.boxes]
 
     def add_widget(self):
         if not self.removed_rows:
@@ -178,35 +183,6 @@ class InputTable(QTableWidget):    # table for all inputs
 
             self.removed_rows.append(remove_row)
             self.boxes[remove_row] = ()
-
-    def link_boxes(self, boxes, only_update_boxes=None):
-        """
-        box1, box2 are either both boxes or both rows, which can be linked. The boxes that can be linked are:
-        rate_slider, slider or inputbox. Linking means that when one value changes, the other changes too.
-        """
-        self.n_links += 1
-        if only_update_boxes is None:
-            only_update_boxes = []
-
-        for i, box_ in enumerate(boxes):
-            if box_ in only_update_boxes:
-                def func():
-                    return
-
-            else:
-                def func(*args, box=box_, n_links=self.n_links):
-                    val = box.value()
-                    for other_box in boxes:
-                        if other_box != box and n_links in other_box.link_funcs.keys():
-                            for link_fuc in other_box.link_funcs.values():
-                                other_box.unbind(link_fuc)
-                            other_box.set_value(val)
-                            for link_fuc in other_box.link_funcs.values():
-                                other_box.bind(link_fuc)
-
-            box_.link_funcs[self.n_links] = func     # enables linking box1 and box2 and box2 and box3 without linking
-            # box1 and box3
-            box_.bind(func)
 
     def add_slider(self, name: str, init_value: float, min_value: float, max_value: float, n_ticks=51,
                      tick_interval=None, only_ints=False, logscale=False, var_name=None, print_value=False,

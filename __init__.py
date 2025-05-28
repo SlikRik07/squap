@@ -379,7 +379,10 @@ def get_boxes():
     """
     Returns a list containing all boxes that exist at this point.
     """
-    return [box_row[-1] for box_row in window.first_input_table.boxes]
+    result = []
+    for table in window.input_tables.values():
+        result.extend(table.get_boxes())
+    return result
 
 
 def get_current_row():
@@ -392,15 +395,11 @@ def get_current_row():
 def link_boxes(boxes: typing.List, only_update_boxes=None):
     """
     Links all boxes in the list `boxes`. Boxes added to only_update_boxes are only updated when a box in boxes is
-    changed, but do not cause the other boxes to update when they are changed.
+    changed but do not cause the other boxes to update when they are changed.
     `link_boxes(box1, box2); link_boxes(box2, box3)` can be used to link box1 to box2 and box2 to box3 without linking
     box1 to box3.
     """
-    window.first_input_table.link_boxes(boxes, only_update_boxes)
-
-
-def new_input_widget_tab(name="tab2"):
-    pass
+    window.link_boxes(boxes, only_update_boxes)
 
 
 def display_fps(update_speed=0.2, get_fps=False, optimised=False, plot_window=None):
@@ -659,7 +658,7 @@ def size():
     return window.size()
 
 
-def set_input_partition(fraction=1/3):          # todo: move to input_widget
+def set_input_partition(fraction=1/3):
     """
     Sets the position of the partition between the 2 columns of the input_widget.
 
@@ -669,8 +668,7 @@ def set_input_partition(fraction=1/3):          # todo: move to input_widget
     """
     if not window.first_input_table:
         window.init_first_tab()
-    window.first_input_table.col_partition = fraction
-    window.first_input_table.resizeEvent(None)
+    window.first_input_table.set_partition(fraction)
 
 
 def is_alive():
