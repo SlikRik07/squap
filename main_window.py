@@ -1,4 +1,7 @@
 import sys
+import os.path
+import numpy as np
+from typing import Optional, List
 
 from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget, QVBoxLayout, QTabWidget
 from pyqtgraph import GraphicsLayoutWidget
@@ -7,8 +10,6 @@ from .plot_widget import PlotWidget
 from .input_widget import InputTable
 from .variables import Variables
 # from .plot_widget_3d import PlotWidget3D
-from typing import Optional, List
-import numpy as np
 
 
 class MainWindow(QMainWindow):
@@ -313,3 +314,7 @@ class MainWindow(QMainWindow):
         self.axs = np.array(self.axs)
         return self.axs
 
+
+def test_print(*args, **kwargs):
+    print(f"filename={os.path.basename(__file__)}: ", end="")
+    print(*args, **kwargs)

@@ -1,6 +1,7 @@
 # starts off by creating an instance of main_window, containing a plot widget.
 import time
 import typing
+import os.path
 
 from .main_window import MainWindow
 from .plot_widget import PlotWidget
@@ -991,3 +992,8 @@ def start_recording(filename: str, fps=30.0, skip_frames=0, widget=window.fig_wi
     window.update_funcs.append(record_func)
 
     return stop_func
+
+
+def test_print(*args, **kwargs):
+    print(f"filename={os.path.basename(__file__)}: ", end="")
+    print(*args, **kwargs)

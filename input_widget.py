@@ -1,8 +1,7 @@
 import numpy as np
 import typing
 from time import time as current_time
-
-from PySide6.QtGui import QResizeEvent
+import os.path
 
 from .helper_funcs import textify, get_type_func
 
@@ -1230,3 +1229,7 @@ class InputTable(QTableWidget):    # table for all inputs
         def print_val(self):
             print(f"{self.current_name} = {self.val()}")
 
+
+def test_print(*args, **kwargs):
+    print(f"filename={os.path.basename(__file__)}: ", end="")
+    print(*args, **kwargs)
