@@ -1,4 +1,5 @@
 import numpy as np
+import os.path
 
 from pyqtgraph import PlotDataItem, PlotItem, TextItem, ImageItem, mkPen
 from PySide6.QtGui import Qt, QLinearGradient, QRadialGradient, QConicalGradient, QGradient, QPen, QBrush
@@ -520,3 +521,7 @@ class ImageCurve(ImageItem):
     def set_data(self, *args, **kwargs):
         if args:
             self.setImage(*args)
+
+def test_print(*args, **kwargs):
+    print(f"filename={os.path.basename(__file__)}: ", end="")
+    print(*args, **kwargs)

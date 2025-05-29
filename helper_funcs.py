@@ -1,9 +1,10 @@
 import ast
-
+import os.path
+import json
 import numpy as np
+
 from PySide6.QtWidgets import QTableWidgetItem
 from pyqtgraph import mkPen, mkColor
-import json
 
 
 # def map_color(color_name):
@@ -191,3 +192,9 @@ def get_type_func(value, parent, col):
                 f"type was probably: {type(value)}")
 
     return type_func
+
+
+def test_print(*args, **kwargs):
+    print(f"filename={os.path.basename(__file__)}: ", end="")
+    print(*args, **kwargs)
+

@@ -1,14 +1,15 @@
 import sys
+import os.path
+import numpy as np
+from typing import Optional, List
 
-from PySide6.QtWidgets import QMainWindow, QSplitter, QApplication
+from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget, QVBoxLayout, QTabWidget
 from pyqtgraph import GraphicsLayoutWidget
 
 from .plot_widget import PlotWidget
-from .input_widget import InputWidget
+from .input_widget import InputTable
 from .variables import Variables
 # from .plot_widget_3d import PlotWidget3D
-from typing import Optional, List
-import numpy as np
 
 
 class MainWindow(QMainWindow):
@@ -34,18 +35,26 @@ class MainWindow(QMainWindow):
         self.fig_widget.addItem(self.axs, 0, 0)  # addItem takes what is added, row, col, rowspan, colspan
         self.plot_widget = self.axs
 
-        self.widthratios = None             # for subplots
+        self.widthratios = None                 # for subplots
         self.heightratios = None
 
         self.extra_width = 0
-        self.input_widget = None            # stuff that can be initialised later is set to None
-        self.splitter = None
+        self.input_width = 0                # width of the input_table
+        self.resized = False                # if it has been resized already, the input_widget mustn't make it bigger
+        self.input_tables = []
+        self.main_input_widget = None       # the input_widget, or the QTabWidget if multiple tabs are added
+        self.first_input_table = None       # the input_table that was added first
+        self.splitter = None                # stuff that can be initialised later is set to None
+        self.tab_widget = None
+        self.table_container = None
         self.exit_when_closed = False
         self.close_funcs = []
 
         self.is3D = False
 
         self.resize(640, 480)
+
+        self.n_links = 0            # number of links between boxes
 
     def closeEvent(self, event):
         # Window is being closed
@@ -67,30 +76,155 @@ class MainWindow(QMainWindow):
         if event:
             event.accept()      # for testing purposes
 
-    def init_input(self, width_ratio=0.5):
+    def link_boxes(self, boxes, only_update_boxes=None):
         """
-        initialises the input window (a table), with width_ratio: width_ratio*fig_widget.width.
-        By default, width_ratio=0.5, probably meaning that fig_widget will be width 640,
-        input_widget width 320, and window width 964
+        box1, box2 are either both boxes or both rows, which can be linked. The boxes that can be linked are:
+        rate_slider, slider, or inputbox. Linking means that when one value changes, the other changes too.
         """
-        height = self.size().height()
+        self.n_links += 1
+        if only_update_boxes is None:
+            only_update_boxes = []
+
+        for i, box_ in enumerate(boxes):
+            if box_ in only_update_boxes:
+                def func():
+                    return
+
+            else:
+                def func(*args, box=box_, n_links=self.n_links):
+                    val = box.value()
+                    for other_box in boxes:
+                        if other_box != box and n_links in other_box.link_funcs.keys():
+                            for link_fuc in other_box.link_funcs.values():
+                                other_box.unbind(link_fuc)
+                            other_box.set_value(val)
+                            for link_fuc in other_box.link_funcs.values():
+                                other_box.bind(link_fuc)
+
+            box_.link_funcs[self.n_links] = func     # enables linking box1 and box2 and box2 and box3 without linking
+            # box1 and box3
+            box_.bind(func)
+
+
+    def init_first_tab(self, width_ratio=0.5, name="tab1"):
+        """
+        Initialises the first tab and adds it to a widget so that it can be moved into a QTabWidget later. This first
+        tab is a stanalone and a QTabWidget is not created yet.
+
+        :param width_ratio: width=width_ratio*fig_widget.width. By default, width_ratio=0.5, probably meaning that
+            fig_widget will be width 640, input_widget width 320, and window width 964. Note that width_ratio is a
+            ratio not a fraction.
+        :type width_ratio: float
+        :param name: Name of the tab, only visible when multiple input tables are added.
+        :type name: str
+        """
+        if self.first_input_table is not None:
+            raise RuntimeError("Can not create a first table when one already exists, use `add_tab()` instead.")
 
         self.splitter = QSplitter()
-        self.splitter.widthratio = width_ratio
+        self.splitter.width_ratio = width_ratio
+        self.input_width = int(self.size().width()*width_ratio)
+        input_table = self.new_table(name)
+        self.first_input_table = input_table        # with one table, the first table is both the first table and the
+        self.main_input_widget = input_table        # widget that needs to be resized.
 
-        input_width = int(self.size().width()*width_ratio)
-        self.input_widget = InputWidget(self.variables, input_width, height)
+        # First added table is added to a widget so that it can be moved into a QTabWidget later.
+        self.table_container = QWidget()
+        layout = QVBoxLayout(self.table_container)  # Set layout on the container
+        layout.setContentsMargins(0, 0, 0, 0)  # Optional: Remove margins if needed
+        layout.addWidget(input_table)  # Add table to the layout
 
-        self.splitter.addWidget(self.input_widget)
+        self.splitter.addWidget(self.table_container)
         self.splitter.addWidget(self.fig_widget)
-
         self.setCentralWidget(self.splitter)
+
+        height = self.size().height()
         if self.isVisible():
-            self.resize(self.size().width() + input_width + 4, height)
+            self.resize(self.size().width() + self.input_width + 4, height)
             # +4 extra for space between plot_widget and input_widget
 
             pos = self.pos().toTuple()
-            self.move(pos[0] - 0.5 * (input_width+4), pos[1])
+            self.move(pos[0] - 0.5 * (self.input_width+4), pos[1])
+
+        return input_table
+
+    def init_tab_widget(self):
+        self.tab_widget = QTabWidget()
+        if self.main_input_widget.resized:
+            # print(self.size())
+            width, height = self.size().toTuple()
+            # copied from resize in __init__.py (when input_widget has been resized, the new QTabWidget is also resized)
+            ratio = self.splitter.width_ratio
+            self.tab_widget.resize(int(ratio * width / (ratio + 1)), height)
+            self.fig_widget.resize(int(width / (ratio + 1)), height)
+            self.splitter.resize(width, height)
+            self.tab_widget.resized = True
+        else:
+            self.tab_widget.resize(self.input_width, self.height())
+            self.tab_widget.resized = False
+
+        self.main_input_widget = self.tab_widget
+        self.table_container.deleteLater()
+        self.splitter.replaceWidget(0, self.tab_widget)
+
+        self.tab_widget.addTab(self.first_input_table, self.first_input_table.name)
+
+    def add_table(self, name=None):
+        """
+        Returns a newly created input table and adds it to a tab_widget.
+
+        :param name: Name of the tab, only visible when multiple input tables are added.
+        :type name: str
+        """
+        if self.tab_widget is None:
+            self.init_tab_widget()
+
+        new_table = self.new_table(name)
+        self.tab_widget.addTab(new_table, new_table.name)
+        return new_table
+
+    def new_table(self, name=None):
+        """
+        Returns a newly created input table and adds it to self.input_tables.
+
+        :param name: Name of the tab, only visible when multiple input tables are added.
+        :type name: str
+        """
+        if name is None:
+            name = f"tab{len(self.input_tables)+1}"
+
+        height = self.size().height()
+        input_table = InputTable( self.input_width, height, name, self)
+        self.input_tables.append(input_table)
+
+        return input_table
+
+    def rename_tab(self, name, index=0, old_name=None):
+        if self.first_input_table is None:
+            self.init_first_tab(name=name)
+            return self.first_input_table
+        if self.tab_widget is None:
+            if index == 0 or old_name == self.first_input_table.name:
+                self.first_input_table.name = name
+            else:
+                if old_name is not None:
+                    raise ValueError(f"{old_name} is not the current name of a tab.")
+                else:
+                    raise ValueError(f"`index` is too high. It can be at most {len(self.input_tables)-1}.")
+            return self.first_input_table
+
+        if old_name is not None:
+            for i, table in enumerate(self.input_tables):
+                if table.name == old_name:
+                    self.tab_widget.setTabText(i, name)
+                    table.name = name
+                    return table
+            else:
+                raise ValueError(f"{old_name} is not the current name of a tab.")
+        else:
+            self.input_tables[index].name = name
+            self.tab_widget.setTabText(index, name)
+            return self.input_tables[index]
 
     def construct_update_func(self, extra_funcs=None):    # constructs the function used to update the plot
         if extra_funcs is None:
@@ -180,3 +314,7 @@ class MainWindow(QMainWindow):
         self.axs = np.array(self.axs)
         return self.axs
 
+
+def test_print(*args, **kwargs):
+    print(f"filename={os.path.basename(__file__)}: ", end="")
+    print(*args, **kwargs)
