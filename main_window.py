@@ -40,7 +40,7 @@ class MainWindow(QMainWindow):
         self.extra_width = 0
         self.input_width = 0                # width of the input_table
         self.resized = False                # if it has been resized already, the input_widget mustn't make it bigger
-        self.input_tables = {}
+        self.input_tables = []
         self.main_input_widget = None       # the input_widget, or the QTabWidget if multiple tabs are added
         self.first_input_table = None       # the input_table that was added first
         self.splitter = None                # stuff that can be initialised later is set to None
@@ -190,13 +190,40 @@ class MainWindow(QMainWindow):
         :type name: str
         """
         if name is None:
-            name = f"tab{len(self.input_tables.values())+1}"
+            name = f"tab{len(self.input_tables)+1}"
 
         height = self.size().height()
         input_table = InputTable( self.input_width, height, name, self)
-        self.input_tables[name] = input_table
+        self.input_tables.append(input_table)
 
         return input_table
+
+    def rename_tab(self, name, index=0, old_name=None):
+        if self.first_input_table is None:
+            self.init_first_tab(name=name)
+            return self.first_input_table
+        if self.tab_widget is None:
+            if index == 0 or old_name == self.first_input_table.name:
+                self.first_input_table.name = name
+            else:
+                if old_name is not None:
+                    raise ValueError(f"{old_name} is not the current name of a tab.")
+                else:
+                    raise ValueError(f"`index` is too high. It can be at most {len(self.input_tables)-1}.")
+            return self.first_input_table
+
+        if old_name is not None:
+            for i, table in enumerate(self.input_tables):
+                if table.name == old_name:
+                    self.tab_widget.setTabText(i, name)
+                    table.name = name
+                    return table
+            else:
+                raise ValueError(f"{old_name} is not the current name of a tab.")
+        else:
+            self.input_tables[index].name = name
+            self.tab_widget.setTabText(index, name)
+            return self.input_tables[index]
 
     def construct_update_func(self, extra_funcs=None):    # constructs the function used to update the plot
         if extra_funcs is None:

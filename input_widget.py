@@ -101,6 +101,7 @@ class InputTable(QTableWidget):    # table for all inputs
         self.current_row = -1
         self.variables = window.variables
         self.update_funcs = window.update_funcs
+        self.window = window        # necessary for renaming tabs
         self.input_varnames = []    # the names of every variable indexed by row for stuff like linking and rate_slider
         self.boxes = []             # for removing them later (and a nice overview)
         self.removed_rows = []      # these are the rows that have been removed out of order, so that these are filled
@@ -120,6 +121,10 @@ class InputTable(QTableWidget):    # table for all inputs
         self.setColumnWidth(0, int(width * self.col_partition))
         self.setColumnWidth(1, int(self.rate_slider_space))
         self.setColumnWidth(2, int(width * (1-self.col_partition))-self.rate_slider_space)
+
+    def rename(self, name):
+        self.window.rename_tab(name, old_name=self.name)
+
 
     def set_partition(self, fraction=1/3):
         """

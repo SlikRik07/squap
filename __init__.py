@@ -377,12 +377,19 @@ def add_input_table(name=None):
         return window.add_table(name=name)
 
 
+def rename_tab(name, index=0, old_name=None):
+    """
+    Renames tab with index `ìndex` or old name `old_name` to `name`.
+    """
+    window.rename_tab(name, index, old_name)
+
+
 def get_boxes():
     """
     Returns a list containing all boxes that exist at this point.
     """
     result = []
-    for table in window.input_tables.values():
+    for table in window.input_tables:
         result.extend(table.get_boxes())
     return result
 
@@ -655,7 +662,6 @@ def resize(width, height):
         window.fig_widget.resize(int(width / (ratio + 1)), height)
         window.splitter.resize(width, height)
         window.main_input_widget.resized = True
-        print(width, height)
 
 
 def size():
