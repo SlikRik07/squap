@@ -13,11 +13,11 @@ from PySide6.QtCore import Qt
 
 
 class Box:              # I am not sure if this is required, but I feel like it helps the IDE and is better organized
-    def __init__(self, parent, row):    # parent will be the InputWidget
+    def __init__(self, parent):    # parent will be the InputWidget
         self.parent = parent
         self.change_funcs = []  # this is so that they can be reordered later if necessary
-        self.row = row          # for removing it later
-        self.textbox = None  # so that you can check if a textbox exists for this box
+        self.row = None         # for removing it later (should be set inside the function)
+        self.textbox = None     # so that you can check if a textbox exists for this box
 
     def change_params(self, **kwargs):
         """
@@ -69,7 +69,6 @@ class Box:              # I am not sure if this is required, but I feel like it 
         """
         # if self.textbox is not None:
         #     self.textbox.destroy()          # not sure if this does anything
-        print(f"{self = }")
         self.parent.remove_row(self.row, self)
 
 
@@ -97,13 +96,13 @@ class InputTable(QTableWidget):    # table for all inputs
 
         # this cell is split in 2 for the rate_slider
 
-        self.current_row = -1
+        self.current_row = -1       # row of the last placed widget (so total amount of rows - 1)
         self.variables = window.variables
         self.update_funcs = window.update_funcs
         self.window = window        # necessary for renaming tabs
         self.input_varnames = []    # the names of every variable indexed by row for stuff like linking and rate_slider
         self.boxes = []             # for removing them later (and a nice overview)
-        self.removed_rows = []      # these are the rows that have been removed out of order, so that these are filled
+        self.empty_rows = []      # these are the rows that have been removed out of order, so that these are filled
                                     # up first
 
     def resizeEvent(self, *args) -> None:       # event is not used since every necessary parameter is in self
@@ -124,7 +123,6 @@ class InputTable(QTableWidget):    # table for all inputs
     def rename(self, name):
         self.window.rename_tab(name, old_name=self.name)
 
-
     def set_partition(self, fraction=1/3):
         """
         Sets the position of the partition between the 2 columns of the input_widget.
@@ -136,29 +134,52 @@ class InputTable(QTableWidget):    # table for all inputs
         self.col_partition = fraction
         self.resizeEvent()
 
-    def get_boxes(self):
+    def get_boxes(self):        # assumes actual widget is the leftmost widget
         """
         Returns a list containing all boxes that exist at this point.
         """
         return [box_row[-1] for box_row in self.boxes]
 
-    def add_widget(self):
-        if not self.removed_rows:
-            self.current_row += 1
-            self.setRowCount(self.current_row + 1)
-            table_height = self.rowHeight(0)*(self.current_row+1)+26
-            if table_height >= self.height():
-                # noinspection PyTypeChecker
-                self.resizeEvent(None)
+    def add_widget(self, row, box_row):     # if row is specified and row is in empty_rows it is added there
+        if row is None or row == self.current_row+1:
+            if not self.empty_rows:
+                self.current_row += 1
+                self.setRowCount(self.current_row + 1)
+                table_height = self.rowHeight(0)*(self.current_row+1)+26
+                if table_height >= self.height():
+                    self.resizeEvent(None)
+
+                self.boxes.append(box_row)
+                return self.current_row
+            else:
+                self.empty_rows.sort()
+                new_row = self.empty_rows[0]
+                self.empty_rows.remove(new_row)
+
+                self.boxes[new_row] = box_row
+                return new_row
+        elif row in self.empty_rows:
+            self.empty_rows.remove(row)
+            self.boxes[row] = box_row
+            return row
+        elif row > self.current_row + 1:
+            extra_rows = []
+            for _ in range(row - self.current_row):
+                self.current_row += 1
+                self.setRowCount(self.current_row + 1)
+                table_height = self.rowHeight(0) * (self.current_row + 1) + 26
+                if table_height >= self.height():
+                    self.resizeEvent(None)
+                extra_rows.append(self.current_row)
+            self.boxes.extend([()]*(len(extra_rows)-1))
+            self.empty_rows.extend(extra_rows[:-1])
+            self.boxes.append(box_row)
             return self.current_row
         else:
-            self.removed_rows.sort()
-            new_row = self.removed_rows[0]
-            self.removed_rows.remove(new_row)
-            return new_row
+            raise ValueError(f"row {row} is not empty")
 
     def remove_row(self, remove_row, remove_box):
-        if remove_row in self.removed_rows or remove_row > self.current_row:
+        if remove_row in self.empty_rows or remove_row > self.current_row:
             raise ValueError(f"row {remove_row} is already empty.")
         for func in remove_box.change_funcs:
             remove_box.unbind(func)
@@ -185,20 +206,25 @@ class InputTable(QTableWidget):    # table for all inputs
                 if item:
                     item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)  # Make uneditable
 
-            self.removed_rows.append(remove_row)
+            self.empty_rows.append(remove_row)
             self.boxes[remove_row] = ()
 
-    def add_slider(self, name: str, init_value: float, min_value: float, max_value: float, n_ticks=51,
-                     tick_interval=None, only_ints=False, logscale=False, var_name=None, print_value=False,
-                     custom_arr=None):
+    def add_slider(self, name: str, init_value=1.0, min_value=0.0, max_value=10.0, n_ticks=51,
+                   tick_interval=None, only_ints=False, logscale=False, custom_arr=None, var_name=None,
+                   print_value=False, row=None):
         """
         Creates a slider with the given parameters, and adds it to the input_widget.
 
         :param name: The name in front of the slider.
+        :type name: str
         :param init_value: The initial value of the slider.
+        :type init_value: float
         :param min_value: The minimum value of the slider.
+        :type min_value: float
         :param max_value: The maximum value of the slider.
+        :type max_value: float
         :param n_ticks: The number of ticks on the slider. Defaults to 51.
+        :type n_ticks: int
         :param tick_interval: The interval between ticks. If provided, overwrites `n_ticks`.
         :param only_ints: Whether to use whole numbers as ticks. If set to True, `tick_interval` is used as spacing
             between the ticks and `n_ticks` is ignored. If `tick_interval` is not specified, it defaults to 1.
@@ -208,37 +234,46 @@ class InputTable(QTableWidget):    # table for all inputs
         :param logscale: Whether to use a logarithmic scale. When `tick_interval` is given it serves as a
             multiplication factor between a point and the previous point (it is rounded to fit min_value and
             max_value. Not allowed in combination with `only_ints`. Defaults to False.
-        :type only_ints: bool
-        :param var_name: The name of the created variable. If `var_name` is not provided, the variable will be
-            named `name`.
-        :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+        :type logscale: bool
         :param custom_arr: Array or list of values, where `custom_arr[i]` will be the value of the slider when it
             is set to position `i`. Overwrites all other parameters (except `init_value`). Defaults to None.
+        :param var_name: The name of the created variable. If `var_name` is not provided, the variable will be
+            named `name`.
+        :type var_name: str
+        :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+        :type print_value: bool
+        :param row: Row to which the widget is added. Defaults to
+        :type row: int
         :return: The slider widget.
         """
         return self.Slider(self, name, init_value, min_value, max_value, n_ticks, tick_interval, only_ints, logscale,
-            var_name, print_value)
+            var_name, custom_arr, print_value, row)
 
-    def add_checkbox(self, name: str, init_value=False, var_name=None, print_value=False):
+    def add_checkbox(self, name: str, init_value=False, var_name=None, print_value=False, row=None):
         """
         Adds a checkbox with the given parameters.
 
         :param name: The name in front of the checkbox.
+        :type name: str
         :param init_value: The initial value of the checkbox.
+        :type init_value: bool
         :param var_name: The name of the created variable. If var_name is not provided, the variable will be named name.
-        :param print_value: Whether to print the value of the checkbox when it changes. Defaults to False.
+        :type var_name: str
+        :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+        :type print_value: bool
+        :param row: Row to which the widget is added. Defaults to
+        :type row: int
         :return: The checkbox widget.
         """
-        return self.Checkbox(self, name, init_value, var_name, print_value)
+        return self.Checkbox(self, name, init_value, var_name, print_value, row)
 
-    def add_inputbox(self, name: str, init_value=1.0, type_func=None, var_name=None, print_value=False):
+    def add_inputbox(self, name: str, init_value=1.0, type_func=None, var_name=None, print_value=False, row=None):
         """
         Adds an inputbox with the given parameters.
 
         :param name: The name in front of the inputbox.
+        :type name: str
         :param init_value: The initial value of the inputbox.
-        :param var_name: The name of the created variable. If `var_name` is not provided, the variable will be
-            named name.
         :param type_func: The function that takes in a string and returns the value as the correct type. Usually,
             this will default to `ast.literal_eval`, which works for a lot of data types: str, float, complex, bool,
             tuple, list, dict, set and None. If `type_func` is set to None (default value), then it will be set to
@@ -256,47 +291,66 @@ class InputTable(QTableWidget):    # table for all inputs
             previously mentioned instances, and they are not nested. Only np.ndarrays allow nesting.
             Can be refreshed by passing a value of the new type to refresh_type_func.
             Note: if you aren't sure if the type will be a list or a value, you can use type_func=json.loads
-        :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
-
+        :param var_name: The name of the created variable. If `var_name` is not provided, the variable will be
+            named name.
+        :type var_name: str
+        :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+        :type print_value: bool
+        :param row: Row to which the widget is added. Defaults to
+        :type row: int
         """
-        return self.InputBox(self, name, init_value, type_func, var_name, print_value)
+        return self.InputBox(self, name, init_value, type_func, var_name, print_value, row)
 
-    def add_button(self, name: str, func=None):
+    def add_button(self, name: str, func=None, row=None):
         """
         Creates a button with name `name` and bound function `func`, and adds it to the input_widget.
 
         :param name: The name in front of the button.
+        :type name: str
         :param func: The function which is run on button press
+        :param row: Row to which the widget is added. Defaults to
+        :type row: int
         """
-        return self.Button(self, name, func)
+        return self.Button(self, name, func, row)
 
-    def add_dropdown(self, name: str, options: list, init_index=0, option_names=None, var_name=None, print_value=False):
+    def add_dropdown(self, name: str, options: list, init_index=0, option_names=None, var_name=None, print_value=False,
+                     row=None):
         """
         Creates a dropdown widget with the given parameters.
 
         :param name: The name in front of the dropdown.
+        :type name: str
         :param options: A list of all options shown in the dropdown menu.
         :param init_index: The index that the dropdown is initially set to.
+        :type init_index: int
         :param option_names: A list of all options the created variable can be, where option_names[index] is
             the value given to the variable, if the dropdown is set to index. If option_names is not provided
             it will be set to `options`.
         :param var_name: The name of the variable. If var_name is not provided, the variable will be named name.
-        :param print_value: Whether to print the value of the dropdown when it changes. Defaults to False.
+        :type var_name: str
+        :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+        :type print_value: bool
+        :param row: Row to which the widget is added. Defaults to
+        :type row: int
         :return: The dropdown widget.
         """
-        return self.Dropdown(self, name, options, init_index, option_names, var_name, print_value)
+        return self.Dropdown(self, name, options, init_index, option_names, var_name, print_value, row)
 
     def add_rate_slider(self, name: str, init_value=1.0, change_rate=10.0, absolute=False, time_var=None,
-            custom_func=None, var_name=None, print_value=False):
+                        custom_func=None, var_name=None, print_value=False, row=None):
         """
         Creates a RateSlider with the given parameters.
 
         :param name: The name in front of the rate_slider.
+        :type name: str
         :param init_value: The initial value of the rate_slider.
+        :type init_value: float
         :param change_rate: Change to the value of the variable per second (how it changes depends on `absolute`),
             multiplied by the current rate_slider position (value between -1 and 1).
+        :type change_rate: float
         :param absolute: How the value of the variable is changed. If absolute is True, changerate will be added
             every second. If it is set to False, the variable will be multiplied be changerate every second.
+        :type absolute: bool
         :param time_var: If set to None (default), actual time will be used. It can also be set to the name of a
             variable in `squap.var` as a string. Then that variable will be regarded as time: if it increases by 1,
             the created variable will be changed by changerate.
@@ -305,19 +359,23 @@ class InputTable(QTableWidget):    # table for all inputs
             of the variable the previous time the function was run, dt is the change in time since then (takes
             `time_var` into account). `slider_value` is a value between -1 and 1, dependent on the slider position.
         :param var_name: The name of the created variable. If var_name is not provided, the variable will be named name.
-        :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
+        :type var_name: str
+        :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+        :type print_value: bool
+        :param row: Row to which the widget is added. Defaults to
+        :type row: int
         :return: The rate_slider widget.
         """
         return self.RateSlider(
             self, name, init_value, change_rate,
-            absolute, time_var, custom_func, var_name, print_value
+            absolute, time_var, custom_func, var_name, print_value, row
         )
 
     class Slider(Box, QSlider):
         def __init__(self, parent, name: str, init_value: float, min_value: float, max_value: float, n_ticks=51,
-                     tick_interval=None, only_ints=False, logscale=False, var_name=None, print_value=False,
-                     custom_arr=None):
-            Box.__init__(self, parent, parent.current_row+1)
+                     tick_interval=None, only_ints=False, logscale=False, custom_arr=None, var_name=None,
+                     print_value=False, row=None):
+            Box.__init__(self, parent)
             QSlider.__init__(self, parent=parent, orientation=Qt.Orientation.Horizontal)
             self.link_funcs = {}            # for linking this box to others
 
@@ -326,8 +384,12 @@ class InputTable(QTableWidget):    # table for all inputs
                                                   n_ticks, tick_interval)
             # this bit is the same for most widgets:
             # <editor-fold desc="add_widget and init name&var_name">
-            row = parent.add_widget()
-            # is set before so that the given value is remembered not the calculated one
+            if name == "":          # if self.textbox will be created
+                box_row = (self, )
+            else:
+                box_row = (self.textbox, self)
+            row = parent.add_widget(row=row, box_row=box_row)
+            self.row = row
 
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 col = 0
@@ -343,11 +405,6 @@ class InputTable(QTableWidget):    # table for all inputs
 
                 if var_name is None:
                     var_name = name
-
-            if self.textbox is None:        # can be done above as well but is done here for generality
-                parent.boxes.insert(row, (self, ))
-            else:
-                parent.boxes.insert(row, (self.textbox, self))
 
             parent.input_varnames.append(var_name)
             parent.setCellWidget(row, col, self)
@@ -427,7 +484,6 @@ class InputTable(QTableWidget):    # table for all inputs
             elif "name" in kwargs:
                 self.current_name = kwargs["name"]
 
-            print(f"{self.printing_val = }")
             if "print_value" in kwargs:
                 if not kwargs["print_value"]:  # if print_value=False is passed as kwarg
                     if self.printing_val:
@@ -539,18 +595,27 @@ class InputTable(QTableWidget):    # table for all inputs
         def set_index(self, index):
             self.setValue(index)
 
+        def index(self):
+            return super(QSlider, self).value()
+
         def print_val(self):
             print(f"{self.current_name} = {self.value()}")
 
     class Checkbox(Box, QCheckBox):
-        def __init__(self, parent, name: str, init_value: bool, var_name=None, print_value=False):
-            Box.__init__(self, parent, parent.current_row+1)
+        def __init__(self, parent, name: str, init_value: bool, var_name=None, print_value=False, row=None):
+            Box.__init__(self, parent)
             QCheckBox.__init__(self)
 
             self.var_name = var_name
 
             # <editor-fold desc="add_widget and init name&var_name">
-            row = parent.add_widget()
+            if name == "":          # if self.textbox will be created
+                box_row = (self, )
+            else:
+                box_row = (self.textbox, self)
+            row = parent.add_widget(row=row, box_row=box_row)
+            self.row = row
+
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 col = 0
                 parent.setSpan(row, 0, 1, 3)
@@ -565,11 +630,6 @@ class InputTable(QTableWidget):    # table for all inputs
 
                 if var_name is None:
                     var_name = name
-
-            if self.textbox is None:        # can be done above as well but is done here for generality
-                parent.boxes.insert(row, (self, ))
-            else:
-                parent.boxes.insert(row, (self.textbox, self))
 
             parent.input_varnames.append(var_name)
             parent.setCellWidget(row, col, self)
@@ -651,14 +711,20 @@ class InputTable(QTableWidget):    # table for all inputs
             print(f"{self.current_name} = {self.val()}")
 
     class InputBox(Box):
-        def __init__(self, parent, name: str, init_value: float, type_func=None, var_name=None, print_value=False):
-            Box.__init__(self, parent, parent.current_row+1)
+        def __init__(self, parent, name: str, init_value: float, type_func=None, var_name=None, print_value=False,
+                     row=None):
+            Box.__init__(self, parent)
             self.var_name = var_name
             self.actual_change_funcs = []       # for being able to unbind functions
             self.link_funcs = {}                # for linking this box to others
 
             # <editor-fold desc="add_widget and init name&var_name">
-            row = parent.add_widget()
+            if name == "":
+                box_row = (self,)
+            else:
+                box_row = (self.textbox, self)
+            row = parent.add_widget(row=row, box_row=box_row)
+            self.row = row
 
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 self.col = 0
@@ -675,14 +741,8 @@ class InputTable(QTableWidget):    # table for all inputs
                 if var_name is None:
                     var_name = name
 
-            if self.textbox is None:        # can be done above as well but is done here for generality
-                parent.boxes.insert(row, (self, ))
-            else:
-                parent.boxes.insert(row, (self.textbox, self))
-
             parent.input_varnames.append(var_name)
             # </editor-fold>
-            self.row = row
 
             if isinstance(init_value, str):
                 parent.setItem(row, self.col, QTableWidgetItem('"' + init_value + '"'))
@@ -792,22 +852,30 @@ class InputTable(QTableWidget):    # table for all inputs
             return self
 
     class Button(Box, QPushButton):
-        def __init__(self, parent, name: str, func=None):
-            row = parent.add_widget()
-
-            Box.__init__(self, parent, row)
+        def __init__(self, parent, name: str, func=None, row=None):
+            Box.__init__(self, parent)
             QPushButton.__init__(self, parent=parent, text=name)
 
-            parent.boxes.insert(row, (self, ))
+            row = parent.add_widget(row=row, box_row=(self, ))
+            self.row = row
+
             parent.setSpan(row, 0, 1, 3)
             parent.input_varnames.append(None)        # so that indexing still works
             parent.setCellWidget(row, 0, self)
 
             if func is not None:
                 self.bind(func)         # is a user provided function, so now we can use bind
+                self.main_func = func
+            else:
+                self.main_func = None
 
         def change_params(self, **kwargs):
-            pass
+            if "name" in kwargs:
+                self.setText(kwargs["name"])
+            if "func" in kwargs:
+                self.unbind(self.main_func)
+                self.main_func = kwargs["func"]
+                self.bind(self.main_func)
 
         def bind(self, func):
             self.change_funcs.append(func)
@@ -831,8 +899,8 @@ class InputTable(QTableWidget):    # table for all inputs
 
     class Dropdown(Box, QComboBox):
         def __init__(self, parent, name: str, options: typing.List, init_index=0, option_names=None, var_name=None,
-                     print_value=False):
-            Box.__init__(self, parent, parent.current_row+1)
+                     print_value=False, row=None):
+            Box.__init__(self, parent)
             QComboBox.__init__(self)
 
             self.var_name, self.options, self.option_names = var_name, options, option_names
@@ -845,7 +913,13 @@ class InputTable(QTableWidget):    # table for all inputs
                     option_names = options
 
             # <editor-fold desc="add_widget and init name&var_name">
-            row = parent.add_widget()
+            if name == "":          # if self.textbox will be created
+                box_row = (self,)
+            else:
+                box_row = (self.textbox, self)
+            row = parent.add_widget(row=row, box_row=box_row)
+            self.row = row
+
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 col = 0
                 parent.setSpan(row, 0, 1, 3)
@@ -860,11 +934,6 @@ class InputTable(QTableWidget):    # table for all inputs
 
                 if var_name is None:
                     var_name = name
-
-            if self.textbox is None:  # can be done above as well but is done here for generality
-                parent.boxes.insert(row, (self, ))
-            else:
-                parent.boxes.insert(row, (self.textbox, self))
 
             parent.input_varnames.append(var_name)
             parent.setCellWidget(row, col, self)
@@ -965,13 +1034,16 @@ class InputTable(QTableWidget):    # table for all inputs
         def set_index(self, index):
             self.setCurrentIndex(index)
 
+        def index(self):
+            return self.currentIndex()
+
         def print_val(self):
             print(f"{self.current_name} = {self.options[self.currentIndex()]}")
 
     class RateSlider(Box, QSlider):
         def __init__(self, parent, name: str, init_value: float, change_rate=10.0, absolute=False,
-                     time_var=None, custom_func=None, var_name=None, print_value=False):
-            Box.__init__(self, parent, parent.current_row+1)
+                     time_var=None, custom_func=None, var_name=None, print_value=False, row=None):
+            Box.__init__(self, parent)
             QSlider.__init__(self)
             self.slider = QSlider(Qt.Orientation.Horizontal, parent)    # done here so it can be added to parent.boxes
             self.actual_change_funcs = []       # for being able to unbind functions
@@ -981,7 +1053,13 @@ class InputTable(QTableWidget):    # table for all inputs
              self.custom_func) = var_name, change_rate, absolute, time_var, custom_func
             # this bit is a bit different for the rate_slider \/\/
             # <editor-fold desc="add_widget and init name&var_name">
-            row = parent.add_widget()
+            if name == "":          # if self.textbox will be created
+                box_row = (self.slider, self)
+            else:
+                box_row = (self.textbox, self.slider, self)
+            row = parent.add_widget(row=row, box_row=box_row)
+            self.row = row
+
             if name == "":  # if no name the first two columns are merged for one cell, but does require var_name
                 rate_slider_col = 0
                 self.col = 1
@@ -998,14 +1076,8 @@ class InputTable(QTableWidget):    # table for all inputs
                 if var_name is None:
                     var_name = name
 
-            if self.textbox is None:  # can be done above as well but is done here for generality
-                parent.boxes.insert(row, (self.slider, self))
-            else:
-                parent.boxes.insert(row, (self.textbox, self.slider, self))
-
             parent.input_varnames.append(var_name)
             # </editor-fold>
-            self.row = row
 
             self.current_name = var_name
             self.printing_val = False

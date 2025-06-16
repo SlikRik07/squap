@@ -222,30 +222,41 @@ def on_mouse_click(func):
 
 
 def add_slider(
-        name: str, init_value=1.0, min_value=0.0, max_value=10.0, n_ticks=51, tick_interval=None, only_ints=False,
-        logscale=False, var_name=None, print_value=False
-):
+        name: str, init_value=1.0, min_value=0.0, max_value=10.0, n_ticks=51,
+        tick_interval=None, only_ints=False, logscale=False, custom_arr=None, var_name=None,
+        print_value=False, row=None):
     """
     Creates a slider with the given parameters, and adds it to the input_widget.
 
     :param name: The name in front of the slider.
+    :type name: str
     :param init_value: The initial value of the slider.
+    :type init_value: float
     :param min_value: The minimum value of the slider.
+    :type min_value: float
     :param max_value: The maximum value of the slider.
-    :param n_ticks: The number of ticks on the slider. Either provide n_ticks or tick_interval. Defaults to 51.
-    :param tick_interval: The interval between ticks. If provided, overwrites n_ticks.
+    :type max_value: float
+    :param n_ticks: The number of ticks on the slider. Defaults to 51.
+    :type n_ticks: int
+    :param tick_interval: The interval between ticks. If provided, overwrites `n_ticks`.
     :param only_ints: Whether to use whole numbers as ticks. If set to True, `tick_interval` is used as spacing
-        between the ticks. If `tick_interval` is not specified, it defaults to 1. Converts `tick_interval` to
-        int and changes the variable to always be an integer. Not allowed in combination with n_ticks or
-        logscale. Defaults to False
+        between the ticks and `n_ticks` is ignored. If `tick_interval` is not specified, it defaults to 1.
+        Rounds `tick_interval` to an integer and changes the variable to always be an integer. Not allowed
+        in combination with `logscale`. Defaults to False
     :type only_ints: bool
-    :param logscale: Whether to use a logarithmic scale. When tick_interval is given it serves as a
-        multiplication factor between a point and the previous point. Not allowed in combination with only_ints.
-        Defaults to False.
-    :type only_ints: bool
-    :param var_name: The name of the created variable. If var_name is not provided, the variable will be
-        named name.
+    :param logscale: Whether to use a logarithmic scale. When `tick_interval` is given it serves as a
+        multiplication factor between a point and the previous point (it is rounded to fit min_value and
+        max_value. Not allowed in combination with `only_ints`. Defaults to False.
+    :type logscale: bool
+    :param custom_arr: Array or list of values, where `custom_arr[i]` will be the value of the slider when it
+        is set to position `i`. Overwrites all other parameters (except `init_value`). Defaults to None.
+    :param var_name: The name of the created variable. If `var_name` is not provided, the variable will be
+        named `name`.
+    :type var_name: str
     :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+    :type print_value: bool
+    :param row: Row to which the widget is added. Defaults to
+    :type row: int
     :return: The slider widget.
     """
 
@@ -253,104 +264,144 @@ def add_slider(
         window.init_first_tab()
     return window.first_input_table.Slider(
         window.first_input_table, name, init_value, min_value, max_value, n_ticks, tick_interval, only_ints, logscale,
-        var_name, print_value
+        custom_arr, var_name, print_value, row
     )
 
 
-def add_checkbox(name: str, init_value=False, var_name=None, print_value=False):
+def add_checkbox(name: str, init_value=False, var_name=None, print_value=False, row=None):
     """
     Adds a checkbox with the given parameters.
 
     :param name: The name in front of the checkbox.
+    :type name: str
     :param init_value: The initial value of the checkbox.
-    :param var_name: The name of the variable. If var_name is not provided, the variable will be named name.
-    :param print_value: Whether to print the value of the checkbox when it changes. Defaults to False.
+    :type init_value: bool
+    :param var_name: The name of the created variable. If var_name is not provided, the variable will be named name.
+    :type var_name: str
+    :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+    :type print_value: bool
+    :param row: Row to which the widget is added. Defaults to
+    :type row: int
     :return: The checkbox widget.
     """
 
     if not window.first_input_table:
         window.init_first_tab()
-    return window.first_input_table.Checkbox(window.first_input_table, name, init_value, var_name, print_value)
+    return window.first_input_table.Checkbox(window.first_input_table, name, init_value, var_name, print_value, row)
 
 
-def add_inputbox(name: str, init_value=1.0, type_func=None, var_name=None, print_value=False):
+def add_inputbox(name: str, init_value=1.0, type_func=None, var_name=None, print_value=False, row=None):
     """
     Adds an inputbox with the given parameters.
 
     :param name: The name in front of the inputbox.
+    :type name: str
     :param init_value: The initial value of the inputbox.
-    :param type_func: The function that takes in a string and returns the value as the correct type. For example
-                `type_func` can be `int`. So that each value is turned into an int. If it is not given it is
-                automatically determined
-    :param var_name: The name of the variable. If var_name is not provided, the variable will be named name.
-    :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
-    :return: The inputbox widget.
+    :param type_func: The function that takes in a string and returns the value as the correct type. Usually,
+        this will default to `ast.literal_eval`, which works for a lot of data types: str, float, complex, bool,
+        tuple, list, dict, set and None. If `type_func` is set to None (default value), then it will be set to
+        `ast.literal_eval` if `init_value` is one of the mentioned data types. If init_value is a `np.array` or
+        a range object, this is also handled, but it needs to be explicitly changed to ast.literal_eval if the
+        data type is changed during runtime. If you have a different data type that doesn't work with automatic
+        handling a function can be passed to this argument that takes in a string and returns the desired value.
+        Note that `ast.literal_eval` is a lot slower than for example `float`, so if you are sure the input is
+        a float, a minor speedup can be achieved by explicitly setting `type_func=float`.
+
+        For example
+        `type_func` can be `int`. So that each value is turned into an int. If it is not given it is
+        automatically determined, which works for the following instances: str, float, complex, bool, range, and
+        the following iterables: tuple, list, dict, set. It is assumed that each of their elements is one of the
+        previously mentioned instances, and they are not nested. Only np.ndarrays allow nesting.
+        Can be refreshed by passing a value of the new type to refresh_type_func.
+        Note: if you aren't sure if the type will be a list or a value, you can use type_func=json.loads
+    :param var_name: The name of the created variable. If `var_name` is not provided, the variable will be
+        named name.
+    :type var_name: str
+    :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+    :type print_value: bool
+    :param row: Row to which the widget is added. Defaults to
+    :type row: int
     """
 
     if not window.first_input_table:
         window.init_first_tab()
-    return window.first_input_table.InputBox(window.first_input_table, name, init_value, type_func, var_name, print_value)
+    return window.first_input_table.InputBox(window.first_input_table, name, init_value, type_func, var_name,
+                                             print_value, row)
     # current_row + 1 because this parameter is updated inside the function
 
 
-def add_button(name: str, func=None):
+def add_button(name: str, func=None, row=None):
     """
-    Adds a button with name `name` and bound function `func`
+    Creates a button with name `name` and bound function `func`, and adds it to the input_widget.
 
-    :param name: The name in front of the inputbox.
+    :param name: The name in front of the button.
+    :type name: str
     :param func: The function which is run on button press
-    :return: The button widget.
+    :param row: Row to which the widget is added. Defaults to
+    :type row: int
     """
     if not window.first_input_table:
         window.init_first_tab()
-    return window.first_input_table.Button(window.first_input_table, name, func)
+    return window.first_input_table.Button(window.first_input_table, name, func, row)
 
 
-def add_dropdown(
-        name: str, options: list, init_index=0, option_names=None, var_name=None, print_value=False
-):
+def add_dropdown(name: str, options: list, init_index=0, option_names=None, var_name=None, print_value=False, row=None):
     """
-    Adds a dropdown widget with the given parameters.
+    Creates a dropdown widget with the given parameters.
 
     :param name: The name in front of the dropdown.
+    :type name: str
     :param options: A list of all options shown in the dropdown menu.
     :param init_index: The index that the dropdown is initially set to.
+    :type init_index: int
     :param option_names: A list of all options the created variable can be, where option_names[index] is
         the value given to the variable, if the dropdown is set to index. If option_names is not provided
         it will be set to `options`.
     :param var_name: The name of the variable. If var_name is not provided, the variable will be named name.
-    :param print_value: Whether to print the value of the dropdown when it changes. Defaults to False.
+    :type var_name: str
+    :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+    :type print_value: bool
+    :param row: Row to which the widget is added. Defaults to
+    :type row: int
     :return: The dropdown widget.
     """
 
     if not window.first_input_table:
         window.init_first_tab()
-    return window.first_input_table.Dropdown(window.first_input_table, name, options, init_index, option_names, var_name,
-                                        print_value)
+    return window.first_input_table.Dropdown(window.first_input_table, name, options, init_index, option_names,
+                                             var_name, print_value, row)
 
 
 def add_rate_slider(
         name: str, init_value=1.0, change_rate=10.0, absolute=False, time_var=None,
-        custom_func=None, var_name=None, print_value=False
+        custom_func=None, var_name=None, print_value=False, row=None
 ):
     """
-    Adds a rate_slider with the given parameters.
+    Creates a RateSlider with the given parameters.
 
     :param name: The name in front of the rate_slider.
+    :type name: str
     :param init_value: The initial value of the rate_slider.
+    :type init_value: float
     :param change_rate: Change to the value of the variable per second (how it changes depends on `absolute`),
         multiplied by the current rate_slider position (value between -1 and 1).
+    :type change_rate: float
     :param absolute: How the value of the variable is changed. If absolute is True, changerate will be added
         every second. If it is set to False, the variable will be multiplied be changerate every second.
+    :type absolute: bool
     :param time_var: If set to None (default), actual time will be used. It can also be set to the name of a
-        variable in squap.var as a string. Then that variable will be regarded as time: if it increases by 1,
+        variable in `squap.var` as a string. Then that variable will be regarded as time: if it increases by 1,
         the created variable will be changed by changerate.
-    :param custom_func: The function that changes the created variable. Overrides `absolute`. It must take three
+    :param custom_func: the function that changes the created variable. Overrides `absolute`. It must take three
         arguments: `old_value`, `dt` and `slider_value` and must return the new value. `old_value` is the value
         of the variable the previous time the function was run, dt is the change in time since then (takes
         `time_var` into account). `slider_value` is a value between -1 and 1, dependent on the slider position.
     :param var_name: The name of the created variable. If var_name is not provided, the variable will be named name.
-    :param print_value: Whether to print the value of the inputbox when it changes. Defaults to False.
+    :type var_name: str
+    :param print_value: Whether to print the value of the slider when it changes. Defaults to False.
+    :type print_value: bool
+    :param row: Row to which the widget is added. Defaults to
+    :type row: int
     :return: The rate_slider widget.
     """
     if not window.first_input_table:
@@ -358,7 +409,7 @@ def add_rate_slider(
 
     return window.first_input_table.RateSlider(
         window.first_input_table, name, init_value, change_rate,
-        absolute, time_var, custom_func, var_name, print_value
+        absolute, time_var, custom_func, var_name, print_value, row
     )
 
 
@@ -669,7 +720,7 @@ def size():
     """
     Returns the size of the window. Can be unreliable when called before the window is shown.
     """
-    return window.size()
+    return window.size().toTuple()
 
 
 def set_input_partition(fraction=1/3):
