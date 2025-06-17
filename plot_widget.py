@@ -39,31 +39,23 @@ class PlotWidget(PlotItem):
         self.addItem(img)
         return img
 
-    def lock_zoom(self, curve):
+    def lock_zoom(self, curves):
         """
-        locks zoom onto current range of a pecified curve or curves.
-        :param curve: curve or curves on which the zoom should lock
-        :type curve: pyqtgraph.PlotDataItem or iterable containing multiple instances of PlotDataItem
-        """
+        Locks zoom onto current range of specified curves.
 
-        if isinstance(curve, PlotDataItem):
+        :param curves: curves on which the zoom should lock
+        :type curves: iterable containing multiple instances of `squap.PlotCurve`
+        """
+        x_min, x_max, y_min, y_max = [], [], [], []
+
+        for curve in curves:
             x, y = curve.getData()
-            self.set_xlim(min(x), max(x))
-            self.set_ylim(min(y), max(y))
-        else:
-            try:
-                x_min, x_max, y_min, y_max = [], [], [], []
-
-                for c in curve:
-                    x, y = c.getData()
-                    x_min.append(min(x))
-                    x_max.append(max(x))
-                    y_min.append(min(y))
-                    y_max.append(max(y))
-                self.set_xlim(min(x_min), max(x_max))
-                self.set_ylim(min(y_min), max(y_max))
-            except AttributeError:
-                raise TypeError(f"curve should be a curve or multiple curves, is now '{curve}'")        # error #1012
+            x_min.append(min(x))
+            x_max.append(max(x))
+            y_min.append(min(y))
+            y_max.append(max(y))
+        self.set_xlim(min(x_min), max(x_max))
+        self.set_ylim(min(y_min), max(y_max))
 
     def plot(
             self, *args, color=None, width=None, connect=None, gradient=None, antialias=None, auto_downsample=None,
@@ -221,6 +213,25 @@ class PlotWidget(PlotItem):
         :type y_max: float
         """
         self.setYRange(y_min, y_max)
+
+    def enable_autoscale(self, axis=None, enable=True):
+        """
+        Enable (or disable) auto-range for *axis*, which may be "x", "y", or "xy" for both (if *axis* is omitted, both
+        axes will be changed).
+        When enabled, the axis will automatically rescale when items are added/removed or change their shape.
+        The argument *enable* may optionally be a float (0.0-1.0) which indicates the fraction of the data that should
+        be visible.
+
+        :param axis: Axis to autoscale. Can be "x", "y", or "xy", or `None` for both. Defaults to None.
+        :type axis: str
+        :param enable: Whether to enable or disable. Defaults to True.
+        :type enable: bool
+        """
+        self.enableAutoRange(axis, enable)
+
+    def disable_autoscale(self, axis=None):
+        """Disables auto-scale. (See `enable_autoscale`)"""
+        self.enableAutoRange(axis, False)
 
     def legend(self):
         """

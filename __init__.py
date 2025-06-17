@@ -18,7 +18,7 @@ from PySide6.QtGui import QLinearGradient, QRadialGradient, QConicalGradient, QG
 from PySide6.QtCore import QPointF
 
 __all__ = [
-    "var", "plot", "scatter", "set_xlim", "set_ylim", "legend", "set_title", "lock_zoom", "subplots", "get_gradient",
+    "var", "plot", "scatter", "set_xlim", "set_ylim", "legend", "set_title", "lock_zoom", "subplots", "remove_curve", "get_gradient",
     "merge", "set_interval", "on_refresh", "on_mouse_click", "add_slider", "add_checkbox", "add_inputbox", "add_button",
     "add_dropdown", "add_rate_slider", "add_input_table", "get_boxes", "add_text", "display_fps", "resize",
     "set_input_partition", "is_alive", "refresh", "show_window", "show", "clear", "export", "export_video"
@@ -33,6 +33,8 @@ imshow = window.plot_widget.imshow
 add_text = window.plot_widget.add_text
 set_xlim = window.plot_widget.set_xlim
 set_ylim = window.plot_widget.set_ylim
+enable_autoscale = window.plot_widget.enable_autoscale
+disable_autoscale = window.plot_widget.disable_autoscale
 legend = window.plot_widget.legend
 set_title = window.plot_widget.set_title
 lock_zoom = window.plot_widget.lock_zoom
