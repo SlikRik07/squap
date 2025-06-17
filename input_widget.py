@@ -1023,12 +1023,9 @@ class InputTable(QTableWidget):    # table for all inputs
 
         def set_value(self, value):
             if self.option_names is None:        # for change_params we need the original value, for this function not.
-                for option in self.options:
-                    if not isinstance(option, str):
-                        option_names = [str(option) for option in self.options]
-                        break
-                else:
-                    option_names = self.options
+                option_names = self.option_names
+            else:
+                option_names = self.options
             self.setCurrentIndex(option_names.index(value))
 
         def set_index(self, index):
