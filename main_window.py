@@ -29,6 +29,7 @@ class MainWindow(QMainWindow):
         self.interval = None                    # for timer when animated
         self.fps_timer = None
         self.refresh_timer = None
+        self.timer = None                       # for disconnecting update_funcs
 
         self.axs = PlotWidget(0, 0)
         self.shape = (1, 1)
@@ -225,19 +226,6 @@ class MainWindow(QMainWindow):
             self.input_tables[index].name = name
             self.tab_widget.setTabText(index, name)
             return self.input_tables[index]
-
-    def construct_update_func(self, extra_funcs=None):    # constructs the function used to update the plot
-        if extra_funcs is None:
-            extra_funcs = []        # we don't want mutable default arguments
-
-        def final_func():
-            for func in self.update_funcs:
-                func()
-            for func in extra_funcs:
-                func()
-
-        return final_func
-
 
     # def init_3D(self):
     #     self.is3D = True

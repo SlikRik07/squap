@@ -243,9 +243,12 @@ class PlotWidget(PlotItem):
         self.addItem(textbox)
         textbox.setPos(*pos)
 
-    def clear(self):
-        for curve in self.curves:
-            curve.clear()
+    # def clear(self):          # pyqtgraph implementation is probably better
+    #     for curve in self.curves:
+    #         curve.clear()
+
+    def remove_curve(self, curve):
+        self.removeItem(curve)
 
 
 class PlotCurve(PlotDataItem):
@@ -294,8 +297,8 @@ class PlotCurve(PlotDataItem):
     #         print("not warning")
         # super(PlotCurve, self).setData(*args, **kwargs)
 
-    def clear(self):
-        self.setData()
+    # def clear(self):          # clear is already implemented (better than this)
+    #     self.setData()
 
     def set_data(self, x=x_old, y=y_old, **kwargs):
         """

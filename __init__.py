@@ -20,8 +20,8 @@ from PySide6.QtCore import QPointF
 __all__ = [
     "var", "plot", "scatter", "set_xlim", "set_ylim", "legend", "set_title", "lock_zoom", "subplots", "get_gradient",
     "merge", "set_interval", "on_refresh", "on_mouse_click", "add_slider", "add_checkbox", "add_inputbox", "add_button",
-    "add_dropdown", "add_rate_slider", "add_input_table", "get_boxes", "add_text", "display_fps", "resize", "set_input_partition", "is_alive", "refresh",
-    "show_window", "show", "export", "export_video"
+    "add_dropdown", "add_rate_slider", "add_input_table", "get_boxes", "add_text", "display_fps", "resize",
+    "set_input_partition", "is_alive", "refresh", "show_window", "show", "clear", "export", "export_video"
 ]
 
 window = MainWindow(mkQApp("squap"))
@@ -81,6 +81,19 @@ subplots = window.create_subplots
 #             kwargs[all_kwargs[index]] = kwarg       # only adds the ones who are not None to kwargs,
 #             # so that the user can still see the optional parameters, while they don't need to be passed to set_data()
 #     return window.plot_widget.base_plot("mesh", *args, **kwargs)
+
+def remove_curve(curve):
+    if isinstance(window.axs, np.ndarray):
+        for pw in window.axs.flatten():
+            if curve in pw.curves:
+                pw.removeItem(curve)
+                return
+    else:
+        if curve in window.axs.curves:
+            window.axs.removeItem(curve)
+            return
+    raise ValueError("Curve has not been found")
+
 
 
 def get_gradient(cmap, style="horizontal", position=None, extend="pad", resolution=256):
@@ -210,6 +223,8 @@ def set_interval(interval):
 
 
 def on_refresh(func):
+    if window.timer:
+        window.timer.timeout.connect(func)
     window.update_funcs.append(func)
 
 
@@ -821,13 +836,14 @@ def show():
 
     timer = QtCore.QTimer()
     if len(window.update_funcs):
-        update_func = window.construct_update_func()
-        timer.timeout.connect(update_func)
+        for func in window.update_funcs:
+            timer.timeout.connect(func)
 
     if window.interval:
         timer.start(window.interval)
     else:
         timer.start()
+    window.timer = timer
 
     if window.main_input_widget:
         if window.resized:
@@ -854,6 +870,22 @@ def show():
 
 def close_window():
     window.close()
+
+
+def clear():
+    for update_func in window.update_funcs:
+        window.timer.timeout.disconnect(update_func)
+    if isinstance(window.axs, np.ndarray):
+        for pw in window.axs.flatten():
+            for curve in pw.curves:
+                pw.removeItem(curve)
+    else:
+        for curve in window.axs.curves:
+            window.axs.removeItem(curve)
+
+    window.update_funcs = []
+    set_xlim(0, 1)
+    set_ylim(0, 1)
 
 
 def export(filename, full_window=False):
