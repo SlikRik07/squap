@@ -214,24 +214,31 @@ class PlotWidget(PlotItem):
         """
         self.setYRange(y_min, y_max)
 
-    def enable_autoscale(self, axis=None, enable=True):
+    def enable_autoscale(self, axis=None, enable=True, x=None, y=None):
         """
         Enable (or disable) auto-range for *axis*, which may be "x", "y", or "xy" for both (if *axis* is omitted, both
         axes will be changed).
         When enabled, the axis will automatically rescale when items are added/removed or change their shape.
         The argument *enable* may optionally be a float (0.0-1.0) which indicates the fraction of the data that should
         be visible.
+        Also allows setting `x` and or `y` to `True` for simpler interface.
 
-        :param axis: Axis to autoscale. Can be "x", "y", or "xy", or `None` for both. Defaults to None.
+        :param axis: Axis to autoscale. Can be "x", "y", or "xy", or `None` for both. Defaults to `None`.
         :type axis: str
-        :param enable: Whether to enable or disable. Defaults to True.
+        :param enable: Whether to enable or disable. Defaults to `True`.
         :type enable: bool
+        :param x: optional simpler interface. Setting this to `True` enables autoscaling in the x-direction. Defaults
+        to `None`.
+        :type x: bool
+        :param y: optional simpler interface. Setting this to `True` enables autoscaling in the y-direction. Defaults
+        to `None`.
+        :type y: bool
         """
-        self.enableAutoRange(axis, enable)
+        self.enableAutoRange(axis, enable, x, y)
 
-    def disable_autoscale(self, axis=None):
+    def disable_autoscale(self, axis=None, x=None, y=None):
         """Disables auto-scale. (See `enable_autoscale`)"""
-        self.enableAutoRange(axis, False)
+        self.enableAutoRange(axis, False, x, y)
 
     def legend(self):
         """
