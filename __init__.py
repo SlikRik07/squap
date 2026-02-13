@@ -702,7 +702,7 @@ def set_active_tab(*args: int | InputTable | str, index: int | None = None, tab:
             name = args[0]
         else:
             raise ValueError("Type of arg not recognised. Must be `int` or `InputTable` or `str`, but"
-                                f" is {type(arg[0])}.")
+                                f" is {type(args[0])}.")
 
     if index is not None:
         window.tab_widget.setCurrentIndex(index)
@@ -723,7 +723,6 @@ def get_all_tabs() -> list[InputTable]:
     for i in range(window.tab_widget.count()):
         result.append(window.tab_widget.widget(i))
     return result
-    
 
 
 def get_boxes() -> list[Box]:
