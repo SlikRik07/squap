@@ -4,7 +4,7 @@ from typing import Any, Callable
 from time import time as current_time
 import os.path
 
-from pyqtgraph import ColorButton, mkColor
+from pyqtgraph import ColorButton
 
 from .helper_funcs import textify, get_type_func
 from PySide6.QtWidgets import (
@@ -30,9 +30,10 @@ class Box:              # I am not sure if this is required, but I feel like it 
 
     def __init__(self, parent: 'InputTable'):    # parent will be the InputWidget
         self.parent = parent
-        self.change_funcs = []  # this is so that they can be reordered later if necessary
-        self.row = None         # for removing it later (should be set inside the function)
-        self.textbox = None     # so that you can check if a textbox exists for this box
+        self.change_funcs = []  # This is so that they can be reordered later if necessary
+        self.row = None         # For removing it later (should be set inside the function)
+        self.textbox = None     # So that you can check if a textbox exists for this box
+        self.link_funcs = None  # For linking this box to other boxes, leave at None for unlinkable boxes
 
     def change_params(self, **kwargs):
         """
@@ -94,8 +95,6 @@ class InputTable(QTableWidget):    # table for all inputs
 
         self.name = name
         self.resize(width, height)
-        self.resized = False            # if window is resized with existing input_widget but not yet shown, this is
-        # set to True, so that showing doesn't correct for input_widget as normal
 
         self.setRowCount(0)
         self.setColumnCount(3)

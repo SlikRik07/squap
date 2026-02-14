@@ -1,13 +1,14 @@
 # starts off by creating an instance of main_window, containing a plot widget.
 from typing import Callable
 
+from .table_manager import TableManager
 from .main_window import MainWindow
 from .plot_widget import PlotWidget
-from .helper_funcs import get_single_color, get_cmap, ColorType
-from .input_widget import InputTable, Box            # only for type hinting
+from .helper_funcs import get_cmap
+from .input_widget import InputTable
 from .variables import Variables
 from .plot_manager import PlotManager
-from .custimisation import get_font, get_gradient, cmap_to_colors
+from .custimisation import get_font, get_gradient
 
 from functools import wraps
 
@@ -18,12 +19,13 @@ __all__ = [
     "var", "plot", "scatter", "errorbar", "set_xlim", "set_ylim", "xlim", "ylim", "legend", "set_title", "lock_zoom", "subplots",
     "remove_item", "get_gradient", "get_cmap", "inf_dline", "inf_hline", "inf_vline", "grid", "plot_text", "merge_plots", "set_interval",
     "on_refresh", "on_mouse_click", "on_mouse_move", "get_mouse_pos", "on_key_press", "add_slider", "add_checkbox", "add_inputbox", "add_button", "get_font",
-    "add_dropdown", "add_rate_slider", "add_input_table", "get_boxes", "display_fps", "resize", "benchmark", "set_input_width_ratio",
+    "add_dropdown", "add_rate_slider", "add_input_table", "get_all_boxes", "display_fps", "resize", "benchmark", "set_input_width_ratio",
     "set_input_partition", "is_alive", "refresh", "show_window", "show", "clear", "export", "export_video", "start_recording"
 ]
 
 _window = None
 _input_table = None
+_table_manager = None
 var = Variables()
 
 
@@ -39,6 +41,15 @@ def get_input_table():
     if _input_table is None:
         _input_table = get_window().init_first_tab()
     return _input_table
+
+
+def get_table_manager():
+    """Makes sure that when a function from table_manager is called, the input table is initialised."""
+    global _table_manager
+    if _table_manager is None:
+        get_input_table()
+        _table_manager = get_window().table_manager
+    return _table_manager
 
 
 # <editor-fold desc="wrapped functions">
@@ -192,11 +203,6 @@ def add_color_picker(*args, **kwargs):
     return get_input_table().add_color_picker(*args, **kwargs)
 
 
-@wraps(MainWindow.add_table)
-def add_input_table(*args, **kwargs):
-    return get_window().add_table(*args, **kwargs)
-
-
 @wraps(MainWindow.on_mouse_click)
 def on_mouse_click(*args, **kwargs):
     return get_window().on_mouse_click(*args, **kwargs)
@@ -217,49 +223,54 @@ def on_key_press(*args, **kwargs):
     return get_window().on_key_press(*args, **kwargs)
 
 
-@wraps(MainWindow.rename_tab)
+@wraps(TableManager.add_table)
+def add_input_table(*args, **kwargs):
+    return get_table_manager().add_table(*args, **kwargs)
+
+
+@wraps(TableManager.rename_tab)
 def rename_tab(*args, **kwargs):
-    return get_window().rename_tab(*args, **kwargs)
+    return get_table_manager().rename_tab(*args, **kwargs)
 
 
-@wraps(MainWindow.set_active_tab)
+@wraps(TableManager.set_active_tab)
 def set_active_tab(*args, **kwargs):
-    return get_window().set_active_tab(*args, **kwargs)
+    return get_table_manager().set_active_tab(*args, **kwargs)
 
 
-@wraps(MainWindow.get_all_tabs)
+@wraps(TableManager.get_all_tabs)
 def get_all_tabs():
-    return get_window().get_all_tabs()
+    return get_table_manager().get_all_tabs()
 
 
-@wraps(MainWindow.get_boxes)
-def get_boxes():
-    return get_window().get_boxes()
+@wraps(TableManager.get_all_boxes)
+def get_all_boxes():
+    return get_table_manager().get_all_boxes()
 
 
-@wraps(MainWindow.get_current_row)
+@wraps(TableManager.get_current_row)
 def get_current_row():
-    return get_window().get_current_row()
+    return get_table_manager().get_current_row()
 
 
-@wraps(MainWindow.link_boxes)
+@wraps(TableManager.link_boxes)
 def link_boxes(*args, **kwargs):
-    return get_window().link_boxes(*args, **kwargs)
+    return get_table_manager().link_boxes(*args, **kwargs)
+
+
+@wraps(TableManager.set_input_partition)
+def set_input_partition(*args, **kwargs):
+    return get_table_manager().set_input_partition(*args, **kwargs)
 
 
 @wraps(MainWindow.resize)
 def resize(*args, **kwargs):
-    return get_window().resize(*args, **kwargs)
+    return get_window().resize_window(*args, **kwargs)
 
 
 @wraps(MainWindow.window_size)
 def size():
     return get_window().window_size()
-
-
-@wraps(MainWindow.set_input_partition)
-def set_input_partition(*args, **kwargs):
-    return get_window().set_input_partition(*args, **kwargs)
 
 
 @wraps(MainWindow.set_input_width_ratio)

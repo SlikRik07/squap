@@ -7,24 +7,24 @@ from argparse import Namespace
 import cv2
 import numpy as np
 
-from typing import Callable, Iterable
+from typing import Callable
 from numbers import Number
 from inspect import signature
 from argparse import ArgumentError
 
-from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget, QVBoxLayout, QTabWidget, QApplication
+from PySide6.QtWidgets import QMainWindow, QSplitter, QWidget, QApplication
 from PySide6.QtGui import QCursor, QGuiApplication
 from PySide6.QtCore import QTimer
 from PySide6.QtCore import Qt
 
 from .plot_manager import PlotManager
-from .input_widget import InputTable, Box            # only for type hinting
+from .table_manager import TableManager
 from .plot_widget import PlotWidget
 # from .plot_widget_3d import PlotWidget3D
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, variables):
+    def __init__(self, variables, width=640, height=480):
         self.app = QApplication()       # app must be created before QMainWindow initialisation.
         self.app.setStyle("Fusion")
 
@@ -36,29 +36,21 @@ class MainWindow(QMainWindow):
         self.plot_manager = PlotManager()
         self.setCentralWidget(self.plot_manager.fig_widget)
 
-        self.table_manager = ...
+        self.table_manager = TableManager(height)
 
-        self.interval = None                    # for timer when animated
+        self.interval = None                # for timer when animated
         self.fps_timer = None
         self.refresh_timer = None
-        self.timer = None                       # for disconnecting update_funcs
+        self.timer = None                   # for disconnecting update_funcs
 
-        self.extra_width = 0
-        self.input_width = 0                # width of the input_table
         self.resized = False                # if it has been resized already, the input_widget mustn't make it bigger
-        self.input_tables = []
-        self.main_input_widget = None       # the input_widget, or the QTabWidget if multiple tabs are added
-        self.first_input_table = None       # the input_table that was added first
         self.splitter = None                # stuff that can be initialised later is set to None
-        self.tab_widget = None
-        self.table_container = None
-        self.exit_when_closed = False       # exit the program when window is closed
+        self.exit_when_closed = False       # whether to exit the entire program when window is closed
+        # (above is mainly useful for `while True: squap.refresh`)
         self.close_funcs = []
         self.on_key_press_funcs = []
 
-        self.resize(640, 480)
-
-        self.n_links = 0            # number of links between boxes
+        self.resize(width, height)
 
     def closeEvent(self, event):
         # Window is being closed
@@ -69,45 +61,10 @@ class MainWindow(QMainWindow):
 
     def resizeEvent(self, event):
         self.plot_manager.update_size(event)
+        self.table_manager.height = self.height()
 
     def keyPressEvent(self, event):
         self.plot_manager.key_pressed(event)
-
-    def link_boxes(self, boxes: Iterable[Box | int], only_update_boxes: list | None = None):    # should probbably be mvoed to input_widget
-        """Link all boxes in the list `boxes`.
-
-        Boxes added to only_update_boxes are only updated when a box in boxes is
-        changed but do not cause the other boxes to update when they are changed.
-        `link_boxes(box1, box2); link_boxes(box2, box3)` can be used to link box1 to box2 and box2 to box3 without linking
-        box1 to box3.
-
-        Args:
-            boxes (Iterable[Box | int]): list of boxes or row numbers of the boxes to link
-            only_update_boxes (list, optional): todo: I forgot what this does...
-        """
-        self.n_links += 1
-        if only_update_boxes is None:
-            only_update_boxes = []
-
-        for i, box_ in enumerate(boxes):
-            if box_ in only_update_boxes:
-                def func():
-                    return
-
-            else:
-                def func(*args, box=box_, n_links=self.n_links):
-                    val = box.value()
-                    for other_box in boxes:
-                        if other_box != box and n_links in other_box.link_funcs.keys():
-                            for link_fuc in other_box.link_funcs.values():
-                                other_box.unbind(link_fuc)
-                            other_box.set_value(val)
-                            for link_fuc in other_box.link_funcs.values():
-                                other_box.bind(link_fuc)
-
-            box_.link_funcs[self.n_links] = func     # enables linking box1 and box2 and box2 and box3 without
-            # linking box1 and box3
-            box_.bind(func)
 
     def init_first_tab(self, width_ratio=0.5, name="tab1"):
         """
@@ -121,185 +78,47 @@ class MainWindow(QMainWindow):
         :param name: Name of the tab, only visible when multiple input tables are added.
         :type name: str
         """
-        if self.first_input_table is not None:
+        if self.table_manager.first_input_table is not None:
             raise RuntimeError("Can not create a first table when one already exists, use `add_tab()` instead.")
 
         self.splitter = QSplitter()
         self.splitter.width_ratio = width_ratio
-        self.input_width = int(self.size().width()*width_ratio)
-        input_table = self.new_table(name)
-        self.first_input_table = input_table        # with one table, the first table is both the first table and the
-        self.main_input_widget = input_table        # widget that needs to be resized.
 
-        # First added table is added to a widget so that it can be moved into a QTabWidget later.
-        self.table_container = QWidget()
-        layout = QVBoxLayout(self.table_container)  # Set layout on the container
-        layout.setContentsMargins(0, 0, 0, 0)       # Optional: Remove margins if needed
-        layout.addWidget(input_table)               # Add table to the layout
+        self.table_manager.width = int(self.size().width()*width_ratio)
+        table, table_container = self.table_manager.create_first_table(name)
 
-        self.splitter.addWidget(self.table_container)
-        self.splitter.addWidget(self.fig_widget)
+        self.splitter.addWidget(table_container)
+        self.splitter.addWidget(self.plot_manager.fig_widget)
         self.setCentralWidget(self.splitter)
 
         height = self.size().height()
         if self.isVisible():
-            self.resize(self.size().width() + self.input_width + 4, height)
+            self.resize(self.size().width() + self.table_manager.width + 4, height)
             # +4 extra for space between plot_widget and input_widget
 
             pos = self.pos().toTuple()
-            self.move(pos[0] - 0.5 * (self.input_width+4), pos[1])
+            self.move(int(pos[0] - 0.5 * (self.table_manager.width+4)), pos[1])
 
-        return input_table
+        return table
 
     def init_tab_widget(self):
-        self.tab_widget = QTabWidget()
-        if self.main_input_widget.resized:
+        # size initialisation must be different depending on whether has been resized with existing input_widget
+        # but not yet shown
+        if self.table_manager.resized:
             # print(self.size())
             width, height = self.size().toTuple()
             # copied from resize in __init__.py (when input_widget has been resized, the new QTabWidget is also resized)
             ratio = self.splitter.width_ratio
-            self.tab_widget.resize(int(ratio * width / (ratio + 1)), height)
-            self.fig_widget.resize(int(width / (ratio + 1)), height)
+            self.table_manager.main_input_widget.resize(int(ratio * width / (ratio + 1)), height)
+            self.plot_manager.fig_widget.resize(int(width / (ratio + 1)), height)
             self.splitter.resize(width, height)
-            self.tab_widget.resized = True
+            self.table_manager.resized = True
         else:
-            self.tab_widget.resize(self.input_width, self.height())
-            self.tab_widget.resized = False
+            self.table_manager.main_input_widget.resize(self.table_manager.width, self.height())
+            self.table_manager.resized = False
 
-        self.main_input_widget = self.tab_widget
-        self.table_container.deleteLater()
-        self.splitter.replaceWidget(0, self.tab_widget)
-
-        self.tab_widget.addTab(self.first_input_table, self.first_input_table.name)
-
-    def add_table(self, name: str | None = None) -> InputTable:
-        """
-        Returns a newly created input table and adds it to a tab_widget.
-
-        :param name: Name of the tab, only visible when multiple input tables are added.
-        :type name: str
-        """
-        if self.tab_widget is None:
-            self.init_tab_widget()
-
-        new_table = self.new_table(name)
-        self.tab_widget.addTab(new_table, new_table.name)
-        return new_table
-
-    def new_table(self, name=None):
-        """
-        Returns a newly created input table and adds it to self.input_tables.
-
-        :param name: Name of the tab, only visible when multiple input tables are added.
-        :type name: str
-        """
-        if name is None:
-            name = f"tab{len(self.input_tables)+1}"
-
-        height = self.size().height()
-        input_table = InputTable(self.input_width, height, name, self)
-        self.input_tables.append(input_table)
-
-        return input_table
-
-    def rename_tab(self, name, index=0, old_name=None):
-        if self.first_input_table is None:
-            self.init_first_tab(name=name)
-            return self.first_input_table
-        if self.tab_widget is None:
-            if index == 0 or old_name == self.first_input_table.name:
-                self.first_input_table.name = name
-            else:
-                if old_name is not None:
-                    raise ValueError(f"{old_name} is not the current name of a tab.")
-                else:
-                    raise ValueError(f"`index` is too high. It can be at most {len(self.input_tables)-1}.")
-            return self.first_input_table
-
-        if old_name is not None:
-            for i, table in enumerate(self.input_tables):
-                if table.name == old_name:
-                    self.tab_widget.setTabText(i, name)
-                    table.name = name
-                    return table
-            else:
-                raise ValueError(f"{old_name} is not the current name of a tab.")
-        else:
-            self.input_tables[index].name = name
-            self.tab_widget.setTabText(index, name)
-            return self.input_tables[index]
-
-    def set_active_tab(self, *args: int | InputTable | str, index: int | None = None, tab: InputTable | None = None,
-                       name: str | None = None) -> InputTable:
-        """Set active tab using one of the possible arguments. Use exactly one.
-
-        Args:
-            *args (int | InputTable | str, optional): One of the possible arguments, automatically determined which it is by
-                given type.
-            index (int, optional): Index of the tab to select. Defaults to None.
-            tab (InputTable, optional): The tab to select. Defaults to None.
-            name (str, optional): Name of the tab to select. Defaults to None.
-
-        Returns:
-            The InputTable belonging to the selected tab.
-        """
-        if self.tab_widget is None:
-            if self.first_input_table is None:
-                raise ValueError("Could not find any tabs. Create tabs before selecting an active tab.")
-            else:
-                return self.first_input_table
-
-        if args:
-            if isinstance(args[0], int):
-                index = args[0]
-            elif isinstance(args[0], InputTable):
-                tab = args[0]
-            elif isinstance(args[0], str):
-                name = args[0]
-            else:
-                raise ValueError("Type of arg not recognised. Must be `int` or `InputTable` or `str`, but"
-                                 f" is {type(args[0])}.")
-
-        if index is not None:
-            self.tab_widget.setCurrentIndex(index)
-        elif tab is not None:
-            self.tab_widget.setCurrentWidget(tab)
-        elif name is not None:
-            for i in range(self.tab_widget.count()):
-                if self.tab_widget.widget(i).name == name:
-                    self.tab_widget.setCurrentIndex(i)
-                    break
-        else:
-            raise ValueError("`set_active_tab` needs an argument. ")
-        return self.tab_widget.currentWidget()
-
-    def get_all_tabs(self) -> list[InputTable]:
-        result = []
-        for i in range(self.tab_widget.count()):
-            result.append(self.tab_widget.widget(i))
-        return result
-
-    def get_boxes(self) -> list[Box]:
-        """Return a list containing all boxes that exist at this point. """
-        result = []
-        for table in self.input_tables:
-            result.extend(table.get_boxes())
-        return result
-
-    def get_current_row(self) -> int:
-        """Return row of the latest placed widget"""
-        return self.first_input_table.current_row
-
-    def set_input_partition(self, fraction: float = 1 / 3):
-        """Set the position of the partition between the 2 columns of the input_widget.
-
-        Args:
-            fraction (float, optional): value between 0 and 1, specifying the portion of the window taken up by the
-                partition. Starts off at 1/3
-        """
-        if not self.first_input_table:
-            self.init_first_tab()
-        self.first_input_table.set_partition(fraction)
+        tab_widget = self.table_manager.init_tab_widget()
+        self.splitter.replaceWidget(0, tab_widget)
 
     # def init_3D(self):
     #     self.plot_style_3D = True
@@ -308,7 +127,7 @@ class MainWindow(QMainWindow):
     #     )
     #     self.setCentralWidget(self.plot_widget)
 
-    def set_interval(self, interval: Number):
+    def set_interval(self, interval: float):
         """Set interval between frames.
 
         Args:
@@ -383,7 +202,7 @@ class MainWindow(QMainWindow):
         self.update_funcs.append(func)
         self.close_funcs.append(final_func)
 
-    def resize(self, width: int, height: int):
+    def resize_window(self, width: int, height: int):
         """
         Resize the window.
 
@@ -397,12 +216,12 @@ class MainWindow(QMainWindow):
         # if window.input_widget is None and not window.isVisible():
         #     window.fig_widget.resize(width, height)
 
-        if self.main_input_widget:
+        if self.table_manager.main_input_widget:
             ratio = self.splitter.width_ratio
-            self.main_input_widget.resize(int(ratio * width / (ratio + 1)), height)
+            self.table_manager.main_input_widget.resize(int(ratio * width / (ratio + 1)), height)
             self.plot_manager.fig_widget.resize(int(width / (ratio + 1)), height)
             self.splitter.resize(width, height)
-            self.main_input_widget.resized = True
+            self.table_manager.resized = True
 
     def window_size(self) -> tuple:
         """Return the size of the window as a tuple. Can be unreliable when called before the window is shown. """
@@ -417,12 +236,12 @@ class MainWindow(QMainWindow):
             fraction (float, optional): value between 0 and 1, specifying the portion of the window taken up by the
                 input window. Starts off at 1/2
         """
-        if not self.first_input_table:
+        if not self.table_manager.first_input_table:
             self.init_first_tab(width_ratio=fraction)
         else:
             width, height = self.window_size()
             self.splitter.width_ratio = fraction
-            self.main_input_widget.resize(int(fraction * width / (fraction + 1)), height)
+            self.table_manager.main_input_widget.resize(int(fraction * width / (fraction + 1)), height)
             self.plot_manager.fig_widget.resize(int(width / (fraction + 1)), height)
             self.splitter.resize(width, height)
 
@@ -452,20 +271,20 @@ class MainWindow(QMainWindow):
         """Shows the window and refreshes it. Use in combination with `squap.refresh`"""
         self.refresh_timer = current_time()
 
-        if self.main_input_widget:
+        if self.table_manager.main_input_widget:
             if self.resized:
-                if not self.main_input_widget.resized:
+                if not self.table_manager.resized:
                     x = self.splitter.width_ratio  # calculates width of the input_widget given x and total w
                     fig_width = self.size().width() / (1 + x)
-                    self.input_width = fig_width * x
+                    self.table_manager.width = fig_width * x
                 else:
-                    fig_width = self.width() - self.input_width - 4
-                self.splitter.setSizes([self.input_width, fig_width])
+                    fig_width = self.width() - self.table_manager.width - 4
+                self.splitter.setSizes([self.table_manager.width, fig_width])
             else:
-                if not self.main_input_widget.resized:
-                    self.resize(self.size().width() + self.input_width + 4, self.height())
+                if not self.table_manager.resized:
+                    self.resize(self.size().width() + self.table_manager.width + 4, self.height())
                 # +4 extra for space between plot_widget and input_widget
-                self.splitter.setSizes([self.input_width, self.plot_manager.fig_widget.width()])
+                self.splitter.setSizes([self.table_manager.width, self.plot_manager.fig_widget.width()])
 
         self.show()
 
@@ -497,20 +316,20 @@ class MainWindow(QMainWindow):
             timer.start()
         self.timer = timer
 
-        if self.main_input_widget:
+        if self.table_manager.main_input_widget:
             if self.resized:
-                if not self.main_input_widget.resized:
+                if not self.table_manager.resized:
                     x = self.splitter.width_ratio  # calculates width of the input_widget given x and total w
                     fig_width = self.size().width() / (1 + x)
-                    self.input_width = fig_width * x
+                    self.table_manager.width = fig_width * x
                 else:
-                    fig_width = self.width() - self.input_width - 4
-                self.splitter.setSizes([self.input_width, fig_width])
+                    fig_width = self.width() - self.table_manager.width - 4
+                self.splitter.setSizes([self.table_manager.width, fig_width])
             else:
-                if not self.main_input_widget.resized:
-                    self.resize(self.size().width() + self.input_width + 4, self.height())
+                if not self.table_manager.resized:
+                    self.resize(self.size().width() + self.table_manager.width + 4, self.height())
                 # +4 extra for space between plot_widget and input_widget
-                self.splitter.setSizes([self.input_width, self.plot_manager.fig_widget.width()])
+                self.splitter.setSizes([self.table_manager.width, self.plot_manager.fig_widget.width()])
 
             # pos = window.pos().toTuple()          # don't know why but this is suddenly not necessary anymore
             # window.move(pos[0]-0.5*(window.input_widget.width() + 4), pos[1])
@@ -533,7 +352,7 @@ class MainWindow(QMainWindow):
         Args:
             filename (str): Name of the file to which the image must be saved. Extension can be png, jpg, jpeg, bmp, pbm,
                 pgm, ppm, xbm and xpm. Defaults to png if no extension is provided.
-            full_window (bool, optional): Whether to include the input window as well.
+            widget (bool, optional): The widget to export.
         """
         if widget is None:
             pixmap = self.grab()
@@ -552,7 +371,7 @@ class MainWindow(QMainWindow):
             raise RuntimeError(f"Saving failed, probably because extension {extension} is not an allowed extension")
 
     def export_video(
-            self, filename: str, fps: float | int = 30.0, n_frames: int | None = None, duration: Number = None,
+            self, filename: str, fps: float | int = 30.0, n_frames: int | None = None, duration: float | None = None,
             stop_func: Callable | None = None, skip_frames: int = 0, display_window: bool = False,
             widget: QWidget | None = None, save_on_close: bool = True
     ):
@@ -567,7 +386,7 @@ class MainWindow(QMainWindow):
             filename (str): Name of the file to which the video is exported.
             fps (Number, optional): Frames per second of the video. Defaults to 30.
             n_frames (int, optional): Number of frames before the video stops and saves.
-            duration (Number, optional): Duration in seconds before the video stops and saves. It will save the last frame
+            duration (float, optional): Duration in seconds before the video stops and saves. It will save the last frame
                 after the time is up as well.
             stop_func (Callable, optional): This function will be run after every iteration. If it returns True, the video
                 stops and saves.
