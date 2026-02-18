@@ -64,9 +64,23 @@ class MainWindow(QMainWindow):
         self.table_manager.height = self.height()
 
     def keyPressEvent(self, event):
-        self.plot_manager.key_pressed(event)
+        for func in self.on_key_press_funcs:
+            func(event)
 
-    def init_first_tab(self, width_ratio=0.5, name="tab1"):
+        if event:
+            event.accept()
+
+    def add_table(self, name=None) -> InputTable:
+        if name is None:
+            name = f"tab{len(self.table_manager.input_tables)+1}"
+        if self.table_manager.tab_widget is not None:
+            new_table = InputTable(self.table_manager.width, self.table_manager.height, name, self)
+            self.table_manager.add_table(new_table)
+            return new_table
+        else:
+            return self.init_first_tab(name=name)
+
+    def init_first_tab(self, width_ratio=0.5, name=None):
         """
         Initialises the first tab and adds it to a widget so that it can be moved into a QTabWidget later. This first
         tab is a standalone and a QTabWidget is not created yet.
@@ -85,7 +99,8 @@ class MainWindow(QMainWindow):
         self.splitter.width_ratio = width_ratio
 
         self.table_manager.width = int(self.size().width()*width_ratio)
-        table, table_container = self.table_manager.create_first_table(name)
+        table = InputTable(self.table_manager.width, self.table_manager.height, name, self)
+        _, table_container = self.table_manager.create_first_table(table)
 
         self.splitter.addWidget(table_container)
         self.splitter.addWidget(self.plot_manager.fig_widget)
