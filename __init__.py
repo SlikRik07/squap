@@ -223,9 +223,9 @@ def on_key_press(*args, **kwargs):
     return get_window().on_key_press(*args, **kwargs)
 
 
-@wraps(TableManager.add_table)
+@wraps(MainWindow.add_table)
 def add_input_table(*args, **kwargs):
-    return get_table_manager().add_table(*args, **kwargs)
+    return get_window().add_table(*args, **kwargs)
 
 
 @wraps(TableManager.rename_tab)
@@ -305,7 +305,7 @@ def on_refresh(*args, **kwargs):
 
 @wraps(MainWindow.show)
 def show():
-    return get_window().show()
+    return get_window().start()
 
 
 @wraps(MainWindow.close)

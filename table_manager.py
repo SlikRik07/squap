@@ -31,23 +31,8 @@ class TableManager:
         """
         self.first_input_table.set_partition(fraction)
 
-    def new_table(self, name=None):
-        """
-        Returns a newly created input table and adds it to self.input_tables.
-
-        :param name: Name of the tab, only visible when multiple input tables are added.
-        :type name: str
-        """
-        if name is None:
-            name = f"tab{len(self.input_tables)+1}"
-
-        input_table = InputTable(self.width, self.height, name, self)
+    def create_first_table(self, input_table):
         self.input_tables.append(input_table)
-
-        return input_table
-
-    def create_first_table(self, name):
-        input_table = self.new_table(name)
 
         self.first_input_table = input_table        # with one table, the first table is both the first table and the
         self.main_input_widget = input_table        # widget that needs to be resized.
@@ -70,16 +55,9 @@ class TableManager:
 
         return
 
-    def add_table(self, name: str | None = None) -> InputTable:
-        """
-        Returns a newly created input table and adds it to a tab_widget.
-
-        :param name: Name of the tab, only visible when multiple input tables are added.
-        :type name: str
-        """
-        new_table = self.new_table(name)
-        self.tab_widget.addTab(new_table, new_table.name)
+    def add_table(self, new_table) -> InputTable:
         self.input_tables.append(new_table)
+        self.tab_widget.addTab(new_table, new_table.name)
         return new_table
 
     def rename_tab(self, name, index=0, old_name=None):
