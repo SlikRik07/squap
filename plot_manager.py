@@ -40,15 +40,6 @@ class PlotManager:
         self.widthratios = None                 # for subplots
         self.heightratios = None
 
-        self.on_key_press_funcs = []
-
-    def key_pressed(self, event):
-        for func in self.on_key_press_funcs:
-            func(event)
-
-        if event:
-            event.accept()
-
     def update_size(self, event):
         if self.heightratios:
             pwidth = (self.fig_widget.width() - 18 - 6*(self.shape[1]-1))/sum(self.widthratios)
