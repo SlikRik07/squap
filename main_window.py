@@ -20,6 +20,7 @@ from PySide6.QtCore import Qt
 from .plot_manager import PlotManager
 from .table_manager import TableManager
 from .plot_widget import PlotWidget
+from .input_widget import InputTable
 # from .plot_widget_3d import PlotWidget3D
 
 
@@ -94,6 +95,9 @@ class MainWindow(QMainWindow):
         """
         if self.table_manager.first_input_table is not None:
             raise RuntimeError("Can not create a first table when one already exists, use `add_tab()` instead.")
+
+        if name is None:
+            name = f"tab{len(self.table_manager.input_tables)+1}"
 
         self.splitter = QSplitter()
         self.splitter.width_ratio = width_ratio
@@ -317,7 +321,7 @@ class MainWindow(QMainWindow):
 
             self.update_funcs.append(interval_func)
 
-    def show(self):
+    def start(self):
         """Show window and starts loop. Use in combination with `Box.bind`, `squap.on_refresh` or for static plots. """
 
         timer = QTimer()  # timer is required for running functions on refresh and executing pyqtgraph programs
